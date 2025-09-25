@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  cpp-web-server:
+    build: .
+    ports:
+      - "18080:18080"
+    container_name: cpp-httpserver
+    restart: unless-stopped
+
