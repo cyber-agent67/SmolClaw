@@ -1,9 +1,8 @@
-build/
-server
-*.o
-*.so
-*.a
-.DS_Store
-.vscode/
-.idea/
+.venv/
+__pycache__/
+browser_data/
+screenshots/
+data/
 
+*.log
+.env
