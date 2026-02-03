@@ -502,6 +502,69 @@ Return ONLY valid JSON in this format:
             print(f"Error extracting release info from HTML: {e}")
             return {"version": "", "tag": "", "author": "Error extracting"}
             
+    async def generate_navigation_plan(self, goal: str) -> list:
+        """Generate a high-level navigation plan (list of steps) based on the goal"""
+        
+        system_prompt = "You are a Navigation Planner. Break down the user's goal into 4-6 clear, sequential, linear steps for a web agent."
+        
+        prompt = f"""Goal: {goal}
+        
+        Standard GitHub Release Flow (Reference):
+        1. Navigate to GitHub homepage
+        2. Search for the repository
+        3. Click on the repository link
+        4. Click on 'Releases'
+        5. Click on the specific tag/title of the latest release (to view full details)
+        6. Extract the release information
+        
+        Return valid JSON:
+        {{
+            "steps": [
+                "Step 1 description",
+                "Step 2 description",
+                ...
+            ]
+        }}
+        """
+        
+        try:
+            if "claude" in self.strategy_model and self.anthropic_client:
+                response = await self.anthropic_client.messages.create(
+                    model=self.strategy_model,
+                    max_tokens=1000,
+                    temperature=0.1,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                content = response.content[0].text
+            else:
+                response = await self.openai_client.chat.completions.create(
+                    model=self.strategy_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=1000,
+                    temperature=0.1
+                )
+                content = response.choices[0].message.content
+                
+            content = content.replace('```json', '').replace('```', '').strip()
+            plan = json.loads(content)
+            return plan.get("steps", [])
+            
+        except Exception as e:
+            print(f"Error generating plan: {e}")
+            # Fallback plan
+            return [
+                "Navigate to https://github.com",
+                f"Search for repository mentioned in '{goal}'",
+                "Click on the repository link",
+                "Click on 'Releases'",
+                "Click on the latest release tag",
+                "Extract release information"
+            ]
+
     async def suggest_dom_selectors(self, goal: str, html_snippet: str, screenshot_data: str = None, step_count: int = 0) -> Dict[str, Any]:
         """Ask Claude for DOM selector heuristics based on the goal, using Vision + HTML"""
         
@@ -601,7 +664,9 @@ Return ONLY valid JSON in this format:
             return {"selectors": []}
 
     async def extract_with_vision_and_html(self, screenshot_data: str, html_content: str, extract_fields: list = None) -> Dict[str, Any]:
-        """Extract information using both visual context and HTML"""
+        """Extract information using both visual context and HTML.
+        Prioritizes GPT (Vision) as requested for final extraction.
+        """
         
         if extract_fields is None:
             extract_fields = ["version", "tag", "author"]
@@ -636,7 +701,27 @@ Return ONLY valid JSON in this format:
 Be precise and extract exact values from the page."""
         
         try:
-            if "claude" in self.strategy_model and self.anthropic_client:
+            # User explicit request: Use GPT Vision model over Claude for extraction
+            # We use self.tagging_model which is configured as gpt-4o in config
+            extraction_model = self.tagging_model 
+            
+            # Helper to run OpenAI extraction
+            async def run_openai_extraction():
+                response = await self.openai_client.chat.completions.create(
+                    model=extraction_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": [
+                                {"type": "text", "text": f"{prompt}\n\nHTML Content:\n{html_content}"},
+                                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{screenshot_data}"}}
+                        ]}
+                    ],
+                    max_tokens=4000
+                )
+                return response.choices[0].message.content
+
+            # Helper to run Claude extraction 
+            async def run_claude_extraction():
                 response = await self.anthropic_client.messages.create(
                     model=self.strategy_model,
                     max_tokens=4000,
@@ -662,21 +747,24 @@ Be precise and extract exact values from the page."""
                         }
                     ]
                 )
-                content = response.content[0].text
+                return response.content[0].text
+
+            content = ""
+            # Prioritize OpenAI (GPT-4o) if available
+            if self.openai_client and "gpt" in extraction_model:
+                try:
+                    print(f"   -> Extracting with {extraction_model} (Visual + HTML)...")
+                    content = await run_openai_extraction()
+                except Exception as gpt_error:
+                    print(f"GPT extraction failed, trying fallback: {gpt_error}")
+                    if self.anthropic_client:
+                        content = await run_claude_extraction()
+            elif self.anthropic_client:
+                 print(f"   -> Extracting with {self.strategy_model} (Visual + HTML)...")
+                 content = await run_claude_extraction()
             else:
-                # OpenAI implementation
-                response = await self.openai_client.chat.completions.create(
-                    model=self.strategy_model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": [
-                             {"type": "text", "text": f"{prompt}\n\nHTML Content:\n{html_content}"},
-                             {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{screenshot_data}"}}
-                        ]}
-                    ],
-                    max_tokens=4000
-                )
-                content = response.choices[0].message.content
+                 # Last resort attempt with whatever client exists
+                 content = await run_openai_extraction()
                 
             content = content.replace('```json', '').replace('```', '').strip()
             return json.loads(content)
