@@ -26,7 +26,8 @@ class VisionAssistant:
         
     async def get_navigation_instruction(self, screenshot_data: str, 
                                         current_url: str, 
-                                        step_name: str) -> Optional[Dict[str, Any]]:
+                                        step_name: str,
+                                        goal: str = None) -> Optional[Dict[str, Any]]:
         """Get navigation instruction from vision model"""
         
         system_prompt = """You are a web navigation assistant. Analyze the screenshot and provide the next action to reach the goal.
@@ -37,7 +38,7 @@ Available actions:
 3. press - Press a key (specify key)
 4. navigate - Go to a URL (specify url)
 5. extract - Extract information from current page
-6. done - Navigation complete
+6. done - Navigation is complete (goal reached)
 
 Respond ONLY with valid JSON in this format:
 {
@@ -49,16 +50,24 @@ Respond ONLY with valid JSON in this format:
     "url": "https://... (for navigate action)"
 }"""
         
+        # Default behavior if no specific goal provided (fallback to original task)
+        task_context = """
+        1. If at GitHub homepage: Find and use the search bar
+        2. If at search results: Click on the correct repository
+        3. If at repository page: Find and click the "Releases" link/tab
+        4. If at releases page: Extract the latest release information
+        """
+        
+        if goal:
+            task_context = f"GOAL: {goal}\n\nDetermine the next logical step to achieve this goal."
+
         user_prompt = f"""
 Current URL: {current_url}
 Current Step: {step_name}
 
-Based on the screenshot, what is the next action to:
-1. If at GitHub homepage: Find and use the search bar
-2. If at search results: Click on the correct repository
-3. If at repository page: Find and click the "Releases" link/tab
-4. If at releases page: Extract the latest release information
+{task_context}
 
+Based on the screenshot, what is the next action?
 Provide only the JSON response.
 """
         
@@ -370,7 +379,6 @@ Return ONLY valid JSON in this format:
     "version": "v1.0.0",
     "tag": "abc1234",
     "author": "username",
-    "release_notes": "Brief description...",
     "published_at": "2024-01-01T00:00:00Z",
     "downloads": [
         {"name": "file.zip", "url": "https://...", "size": "1.2 MB"}
@@ -442,14 +450,12 @@ Return ONLY valid JSON in this format:
         1. Version/tag name
         2. Commit hash/tag
         3. Author/uploader username
-        4. Brief release notes
         
         Return ONLY valid JSON in this format:
         {
             "version": "v1.0.0",
             "tag": "abc1234",
             "author": "username",
-            "release_notes": "Brief description...",
             "published_at": "2024-01-01T00:00:00Z"
         }"""
         
@@ -594,19 +600,40 @@ Return ONLY valid JSON in this format:
             
             return {"selectors": []}
 
-    async def extract_with_vision_and_html(self, screenshot_data: str, html_content: str) -> Dict[str, Any]:
+    async def extract_with_vision_and_html(self, screenshot_data: str, html_content: str, extract_fields: list = None) -> Dict[str, Any]:
         """Extract information using both visual context and HTML"""
+        
+        if extract_fields is None:
+            extract_fields = ["version", "tag", "author"]
+        
+        # Build dynamic field descriptions
+        field_descriptions = {
+            "version": "Version number (e.g., v1.0.0, v2026.2.1)",
+            "tag": "Git commit hash or tag name (short form)",
+            "author": "Author/uploader username (look for user links, hovercards, or 'releases by' text)",
+            "release_notes": "Brief summary of release notes/changes",
+            "published_at": "Publication date (ISO format if available)",
+            "downloads": "List of download assets with name, url, size"
+        }
+        
+        # Build required fields list
+        fields_list ="\n".join([f"{i+1}. {field}: {field_descriptions.get(field, field)}" 
+                                  for i, field in enumerate(extract_fields)])
+        
+        # Build example JSON
+        example_json = {field: f"<{field}_value>" for field in extract_fields}
+        
         system_prompt = "You are an intelligent extraction assistant. Use the visual screenshot and HTML to extract accurate data."
         
-        prompt = """Extract the latest release information.
+        prompt = f"""Extract the latest release information from this GitHub release page.
         
-        REQUIRED FIELDS:
-        1. version (e.g., v1.0.0)
-        2. tag (commit hash or tag name)
-        3. author/uploader (Crucial: Look for user links, hovercards, or 'releases by' text)
-        4. release_notes (brief summary)
+REQUIRED FIELDS:
+{fields_list}
         
-        Return JSON."""
+Return ONLY valid JSON in this format:
+{json.dumps(example_json, indent=2)}
+
+Be precise and extract exact values from the page."""
         
         try:
             if "claude" in self.strategy_model and self.anthropic_client:
