@@ -594,7 +594,7 @@ def quit_browser() -> str:
 @tool
 def think(query: str) -> str:
     """
-    The 'Cognitive Engine' (Claude 3 Opus). Call this tool to THINK STRATEGICALLY before acting.
+    The 'Cognitive Engine' (Claude). Call this tool to THINK STRATEGICALLY before acting.
     
     This uses a specialized "Thought Engine" pattern:
     1. It pauses to reason internally (generating a step-by-step plan).

@@ -105,7 +105,7 @@ def main():
                     return raw_prompt
                     
                 client = anthropic.Anthropic(api_key=api_key)
-                print(f"Refining prompt with Claude 3 Opus (actually Sonnet 4.5)... '{raw_prompt}'")
+                print(f"Refining prompt with Claude (actually Sonnet 4.5)... '{raw_prompt}'")
                 
                 message = client.beta.messages.create(
                     model="claude-sonnet-4-5",
@@ -143,7 +143,7 @@ def main():
         **ADVISOR PROTOCOL (Phase 1: Deep Cognition)**
         CRITICAL: You are powered by a multi-model architecture.
         You MUST start every complex task by using your `think` tool.
-        This triggers your "Higher Cognition" (Claude 3 Opus) to analyze the user's request and build a high-level strategy.
+        This triggers your "Higher Cognition" (Claude) to analyze the user's request and build a high-level strategy.
         
         DO NOT PROCEED WITHOUT THINKING FIRST.
         
