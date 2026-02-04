@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-GitHub Release Information Extractor using Vision Models
-Implements the Aesopic Exercise requirements
+Web Navigation Agent using Vision Models
+Implements autonomous web navigation with A* algorithms
 """
 
 import json
@@ -45,8 +45,7 @@ class BrowserRegistry:
 browser_registry = BrowserRegistry()
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="GitHub Release Navigator (Aesopic Exercise Implementation)")
-    parser.add_argument("--repo", help="Repository in format 'owner/repo'")
+    parser = argparse.ArgumentParser(description="Web Navigation Agent (Autonomous Web Navigation Implementation)")
     parser.add_argument("--url", default="https://www.google.com", help="Starting URL")
     parser.add_argument("--prompt", help="Natural language prompt")
     parser.add_argument("--output", default=os.path.join("data", "output.json"), help="Output JSON file path")
@@ -79,8 +78,8 @@ def main():
         3. You can see all hyperlinks and hrefs that connect directly to other pages
 
         NAVIGATION STRATEGY:
-        1. First, use the WebSearchTool to understand the directory structure of the target site (GitHub)
-        2. Learn about GitHub's URL patterns for repositories and releases
+        1. First, use the WebSearchTool to understand the directory structure of the target site
+        2. Learn about the site's URL patterns and navigation structure
         3. Parse the DOM tree to understand the current page structure
         4. Identify hyperlinks and hrefs that lead to the target destination
         5. If you find a direct link to the next page you need, CHANGE THE URL DIRECTLY
@@ -100,7 +99,6 @@ def main():
         enhanced_args = types.SimpleNamespace(
             url=args.url,
             prompt=enhanced_prompt,
-            repo=args.repo,
             output=args.output,
             model_type=args.model_type,
             model_id=args.model_id

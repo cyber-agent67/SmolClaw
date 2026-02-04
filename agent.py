@@ -104,24 +104,24 @@ tab_manager = TabManager()
 class ExperienceMemory:
     """RAG-based memory system to store and retrieve navigation experiences"""
 
-    def __init__(self, memory_file="navigation_memory.pkl"):
+    def __init__(self, memory_file="navigation_missions.json"):
         self.memory_file = memory_file
         self.experiences = self.load_memory()
 
     def load_memory(self) -> List[Dict]:
-        """Load previous experiences from file"""
+        """Load previous experiences from JSON file"""
         if os.path.exists(self.memory_file):
             try:
-                with open(self.memory_file, 'rb') as f:
-                    return pickle.load(f)
+                with open(self.memory_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
             except:
                 return []
         return []
 
     def save_memory(self):
-        """Save experiences to file"""
-        with open(self.memory_file, 'wb') as f:
-            pickle.dump(self.experiences, f)
+        """Save experiences to JSON file"""
+        with open(self.memory_file, 'w', encoding='utf-8') as f:
+            json.dump(self.experiences, f, indent=2)
 
     def add_experience(self, experience: Dict):
         """Add a new experience to memory"""
@@ -274,11 +274,12 @@ def close_tab(tab_id: str) -> str:
         return f"Failed to close tab: {tab_id}"
 
 @tool
-def find_path_to_target(target: str) -> str:
+def find_path_to_target(target: str, keyword_values: str = None) -> str:
     """
     Uses A* algorithm to find the optimal path to a target page using current URL and hyperlinks.
     Args:
         target: The target to search for (can be a URL, link text, or keyword)
+        keyword_values: JSON string of keyword:value pairs for heuristic scoring (optional)
     Returns:
         A JSON string with the path to the target and the recommended action
     """
@@ -324,23 +325,15 @@ def find_path_to_target(target: str) -> str:
     except:
         links_data = []
 
-    # Define keyword values for heuristic scoring
-    keyword_values = {
-        'release': 90,
-        'releases': 90,
-        'tag': 85,
-        'tags': 85,
-        'version': 80,
-        'versions': 80,
-        'download': 75,
-        'downloads': 75,
-        'archive': 70,
-        'archives': 70,
-        'latest': 65,
-        'new': 60,
-        'recent': 55,
-        'current': 50
-    }
+    # Use provided keyword values if available, otherwise use empty dict
+    if keyword_values:
+        try:
+            final_keyword_values = json.loads(keyword_values)
+        except:
+            # If parsing fails, use empty dict
+            final_keyword_values = {}
+    else:
+        final_keyword_values = {}
 
     # Implement A* algorithm to find the best path
     def calculate_heuristic(link, target):
@@ -366,15 +359,11 @@ def find_path_to_target(target: str) -> str:
 
         # Score based on keyword values in text content
         text_to_check = (link.get('text', '') + ' ' + link.get('allTextContent', '')).lower()
-        for keyword, value in keyword_values.items():
+        for keyword, value in final_keyword_values.items():
             if keyword in text_to_check:
                 score += value
 
-        # Check for GitHub-specific patterns if in a GitHub domain
-        if 'github.com' in current_url.lower():
-            href_lower = link.get('href', '').lower()
-            if any(common in href_lower for common in ['/releases', '/tags', '/archive']):
-                score += 40
+        # No site-specific hardcoded logic - keep it generic
 
         return score
 
@@ -432,6 +421,161 @@ def find_path_to_target(target: str) -> str:
 
     # Return both the formatted text and the JSON data
     return output_text + "\n\n" + json.dumps(result, indent=2)
+
+@tool
+def get_address() -> str:
+    """
+    Gets the current address information from the browser or system.
+    Returns:
+        A string containing the current address information
+    """
+    import socket
+    from helium import get_driver
+
+    try:
+        # Get the current URL from the browser
+        driver = get_driver()
+        current_url = driver.current_url
+
+        # Get the hostname of the current system
+        hostname = socket.gethostname()
+
+        # Get the local IP address
+        local_ip = socket.gethostbyname(hostname)
+
+        # Execute JavaScript to get geolocation from the browser
+        # Note: Geolocation is asynchronous, so we'll return a placeholder for now
+        # and let the agent know that geolocation requires special handling
+        location_data = {
+            "note": "Browser geolocation requires special handling due to asynchronous nature",
+            "javascript_geolocation": "navigator.geolocation.getCurrentPosition() can be used but requires callbacks/promises"
+        }
+
+        # Construct address information
+        address_info = {
+            "current_page_url": current_url,
+            "system_hostname": hostname,
+            "local_ip_address": local_ip,
+            "browser_title": driver.title if driver.title else "No Title",
+            "geolocation_data": location_data
+        }
+
+        import json
+        return json.dumps(address_info, indent=2)
+    except Exception as e:
+        return f"Error getting address information: {str(e)}"
+
+
+@tool
+def get_geolocation() -> str:
+    """
+    Gets the physical location from the browser's geolocation service.
+    Returns:
+        A string containing the geolocation information
+    """
+    from helium import get_driver
+    import json
+    import socket
+
+    try:
+        driver = get_driver()
+
+        # Execute JavaScript to get geolocation from the browser
+        # We'll use a timeout mechanism to handle the asynchronous nature
+        result = driver.execute_script("""
+            // Create a temporary element to store the result
+            var resultElement = document.createElement('div');
+            resultElement.id = 'geolocation-result';
+            resultElement.style.display = 'none';
+            document.body.appendChild(resultElement);
+
+            function handleLocation(position) {
+                var coords = position.coords;
+                var locationData = {
+                    latitude: coords.latitude,
+                    longitude: coords.longitude,
+                    accuracy: coords.accuracy,
+                    altitude: coords.altitude,
+                    altitudeAccuracy: coords.altitudeAccuracy,
+                    heading: coords.heading,
+                    speed: coords.speed,
+                    timestamp: position.timestamp,
+                    success: true
+                };
+                resultElement.textContent = JSON.stringify(locationData);
+            }
+
+            function handleError(error) {
+                var errorData = {
+                    error: error.message,
+                    code: error.code,
+                    success: false
+                };
+                resultElement.textContent = JSON.stringify(errorData);
+            }
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(handleLocation, handleError, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 300000
+                });
+            } else {
+                var errorData = {
+                    error: "Geolocation is not supported by this browser",
+                    success: false
+                };
+                resultElement.textContent = JSON.stringify(errorData);
+            }
+
+            // Wait for 5 seconds and return whatever result we have
+            setTimeout(function() {
+                if (resultElement.textContent === '') {
+                    var timeoutData = {
+                        error: "Timeout waiting for geolocation",
+                        success: false
+                    };
+                    resultElement.textContent = JSON.stringify(timeoutData);
+                }
+            }, 5000);
+        """)
+
+        # Wait a moment for the geolocation to complete
+        import time
+        time.sleep(6)  # Wait for the geolocation request to complete
+
+        # Get the result from the temporary element
+        location_result = driver.execute_script("""
+            var element = document.getElementById('geolocation-result');
+            if (element) {
+                var result = element.textContent;
+                element.remove(); // Clean up
+                return result;
+            }
+            return JSON.stringify({error: "Geolocation result element not found", success: false});
+        """)
+
+        # Parse the result
+        try:
+            location_data = json.loads(location_result) if location_result else {"error": "No location data returned", "success": False}
+        except:
+            location_data = {"error": "Could not parse location data", "success": False, "raw_result": location_result}
+
+        # Get system information as well
+        system_info = {
+            "system_hostname": socket.gethostname(),
+            "local_ip_address": socket.gethostbyname(socket.gethostname()),
+        }
+
+        result = {
+            "geolocation": location_data,
+            "system_info": system_info
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return f"Error getting geolocation: {str(e)}"
+
 
 @tool
 def quit_browser() -> str:
@@ -498,33 +642,43 @@ def close_popups() -> str:
 
 def save_screenshot(memory_step: ActionStep, agent: CodeAgent) -> None:
     sleep(1.0)  # Let JavaScript animations happen before taking the screenshot
-    driver = helium.get_driver()
-    current_step = memory_step.step_number
-    if driver is not None:
-        for previous_memory_step in (
-            agent.memory.steps
-        ):  # Remove previous screenshots from logs for lean processing
-            if (
-                isinstance(previous_memory_step, ActionStep)
-                and previous_memory_step.step_number <= current_step - 2
-            ):
-                previous_memory_step.observations_images = None
-        png_bytes = driver.get_screenshot_as_png()
-        image = Image.open(BytesIO(png_bytes))
-        print(f"Captured a browser screenshot: {image.size} pixels")
-        memory_step.observations_images = [
-            image.copy()
-        ]  # Create a copy to ensure it persists, important!
+    try:
+        driver = helium.get_driver()
+        current_step = memory_step.step_number
+        if driver is not None:
+            for previous_memory_step in (
+                agent.memory.steps
+            ):  # Remove previous screenshots from logs for lean processing
+                if (
+                    isinstance(previous_memory_step, ActionStep)
+                    and previous_memory_step.step_number <= current_step - 2
+                ):
+                    previous_memory_step.observations_images = None
+            png_bytes = driver.get_screenshot_as_png()
+            image = Image.open(BytesIO(png_bytes))
+            print(f"Captured a browser screenshot: {image.size} pixels")
+            memory_step.observations_images = [
+                image.copy()
+            ]  # Create a copy to ensure it persists, important!
 
-    # Update observations with current URL using Helium
-    from helium import get_driver
-    driver = get_driver()
-    url_info = f"Current url: {driver.current_url}"
-    memory_step.observations = (
-        url_info
-        if memory_step.observations is None
-        else memory_step.observations + "\n" + url_info
-    )
+        # Update observations with current URL using Helium
+        from helium import get_driver
+        driver = get_driver()
+        if driver is not None:
+            url_info = f"Current url: {driver.current_url}"
+        else:
+            url_info = "Current url: Driver closed"
+        memory_step.observations = (
+            url_info
+            if memory_step.observations is None
+            else memory_step.observations + "\n" + url_info
+        )
+    except:
+        # If driver is not available, just continue without screenshot
+        url_info = "Current url: Unable to access driver"
+        memory_step.observations = (
+            url_info if memory_step.observations is None else memory_step.observations + "\n" + url_info
+        )
     return
 
 def initialize_driver():
@@ -539,7 +693,7 @@ def initialize_driver():
 def initialize_agent(model, experience_memory: ExperienceMemory):
     """Initialize the CodeAgent with the specified model and custom tools."""
     return CodeAgent(
-        tools=[WebSearchTool(), go_back, close_popups, search_item_ctrl_f, get_DOM_Tree, set_browser_url, create_new_tab, switch_to_tab, close_tab, find_path_to_target, quit_browser],
+        tools=[WebSearchTool(), go_back, close_popups, search_item_ctrl_f, get_DOM_Tree, set_browser_url, create_new_tab, switch_to_tab, close_tab, find_path_to_target, get_address, get_geolocation, quit_browser],
         model=model,
         additional_authorized_imports=["helium"],
         step_callbacks=[save_screenshot],
@@ -552,11 +706,8 @@ def run_agent_with_args(args):
     # Load environment variables
     load_dotenv()
 
-    # If repo is provided, update the prompt accordingly
-    if args.repo:
-        prompt = f"Find the latest release for repository {args.repo}"
-    else:
-        prompt = args.prompt or "search for openclaw and get the current release and related tags"
+    # Use the provided prompt directly
+    prompt = args.prompt or "Perform a web search and navigate to find relevant information"
 
     # Initialize experience memory
     experience_memory = ExperienceMemory()
@@ -569,7 +720,7 @@ def run_agent_with_args(args):
 
     # Navigate to the specified URL instead of starting on a blank page
     from helium import go_to
-    go_to(args.url)  # Start at the specified URL (GitHub.com by default)
+    go_to(args.url)  # Start at the specified URL
 
     # Add initial URL to navigation stack
     global navigation_stack
