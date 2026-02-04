@@ -6,6 +6,8 @@ Core agent functionality without command-line interface
 
 import json
 import os
+import time
+import base64
 from typing import Dict, Any, List
 from datetime import datetime
 import pickle
@@ -158,45 +160,47 @@ def get_DOM_Tree() -> str:
     """
     Retrieves the full DOM tree of the current page as a structured JSON string.
     """
-    # Use helium to get the driver and execute script
+    import concurrent.futures
+    from bs4 import BeautifulSoup
     from helium import get_driver
-    driver = get_driver()
 
-    # Get the DOM and convert to a structured JSON representation
-    dom_json = driver.execute_script("""
-        function domToJSON(element, maxDepth = 5, currentDepth = 0) {
-            if (currentDepth > maxDepth) return null;
-
-            var result = {
-                tagName: element.tagName ? element.tagName.toLowerCase() : 'unknown',
-                attributes: {},
-                textContent: element.textContent ? element.textContent.trim().substring(0, 100) : '',
-                children: []
-            };
-
-            // Get attributes
-            if (element.attributes) {
-                for (var i = 0; i < element.attributes.length; i++) {
-                    var attr = element.attributes[i];
-                    result.attributes[attr.name] = attr.value;
-                }
-            }
-
-            // Process children
-            if (element.children && currentDepth < maxDepth) {
-                for (var j = 0; j < element.children.length; j++) {
-                    var childResult = domToJSON(element.children[j], maxDepth, currentDepth + 1);
-                    if (childResult) {
-                        result.children.push(childResult);
-                    }
-                }
-            }
-
-            return result;
+    # Helper function for recursive parsing (logic moved from server)
+    def element_to_dict(element):
+        if element.name is None:  # It's a NavigableString (text)
+            return {"type": "text", "content": element.strip()} if element.strip() else None
+        
+        result = {
+            "tag": element.name,
+            "attrs": element.attrs,
+            "children": []
         }
-        return JSON.stringify(domToJSON(document.documentElement));
-    """)
-    return dom_json
+        
+        for child in element.children:
+            child_dict = element_to_dict(child)
+            if child_dict:
+                result["children"].append(child_dict)
+        return result
+
+    def parse_html_in_thread(html_content):
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            # For the agent, we might want to limit the tree size or return the whole thing
+            # using the recursive function
+            return json.dumps(element_to_dict(soup))
+        except Exception as e:
+            return f"Error parsing HTML: {str(e)}"
+
+    # Main tool logic
+    driver = get_driver()
+    html_content = driver.page_source
+
+    # Use a thread to perform the parsing
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(parse_html_in_thread, html_content)
+        try:
+            return future.result(timeout=30) # 30 second timeout
+        except Exception as e:
+            return f"Error during threaded parsing: {str(e)}"
 
 # Remove the get_page_html tool as requested
 
@@ -276,151 +280,144 @@ def close_tab(tab_id: str) -> str:
 @tool
 def find_path_to_target(target: str, keyword_values: str = None) -> str:
     """
-    Uses A* algorithm to find the optimal path to a target page using current URL and hyperlinks.
+    The 'Grappling Hook' / Scout tool. Uses a Depth-1 Lookahead Search to find the best link.
+    
+    NO LLM usage. Pure algorithmic scouting:
+    1. Scans current page for top candidates.
+    2. Opens a BACKGROUND TAB to visit/hook each candidate.
+    3. Analyzes the CONTENT of the destination page.
+    4. Returns the single best URL that matches your target.
+    
+    Use this to "Grapple" to a destination with high confidence especially for navigation steps like finding 'Login'.
+    
     Args:
-        target: The target to search for (can be a URL, link text, or keyword)
-        keyword_values: JSON string of keyword:value pairs for heuristic scoring (optional)
+        target: The target concept or keyword to find (e.g., "latest release", "about page", "login")
+        keyword_values: Optional JSON scoring weights
     Returns:
-        A JSON string with the path to the target and the recommended action
+        JSON string with the "best_url" to navigate to, and the "reasoning".
     """
     import json
+    import time
     from helium import get_driver
-
-    # Get current page information
+    
     driver = get_driver()
+    original_window = driver.current_window_handle
     current_url = driver.current_url
-
-    # Get all hyperlinks on the current page with their child elements and text content
+    
+    # 1. SCOUT CURRENT PAGE
     try:
-        # Execute JavaScript to get all anchor elements with href and their content
         links_data = driver.execute_script("""
             var links = Array.from(document.querySelectorAll('a[href]'));
             return links.map(function(link) {
-                // Get all text content from the link and its children
-                var allText = [];
-                var walker = document.createTreeWalker(
-                    link,
-                    NodeFilter.SHOW_TEXT,
-                    null,
-                    false
-                );
-                var node;
-                while (node = walker.nextNode()) {
-                    var text = node.textContent.trim();
-                    if (text) allText.push(text);
-                }
-
                 return {
                     href: link.href,
-                    text: link.textContent.trim(),
-                    allTextContent: allText.join(' '),
-                    title: link.title,
-                    alt: link.alt || '',
-                    id: link.id || '',
-                    className: link.className || '',
-                    innerHTML: link.innerHTML
+                    text: link.innerText.trim(),
+                    title: link.title || ''
                 };
             });
         """)
     except:
-        links_data = []
+        return json.dumps({"error": "Failed to extract links from current page"})
 
-    # Use provided keyword values if available, otherwise use empty dict
     if keyword_values:
         try:
-            final_keyword_values = json.loads(keyword_values)
+            weights = json.loads(keyword_values)
         except:
-            # If parsing fails, use empty dict
-            final_keyword_values = {}
+            weights = {}
     else:
-        final_keyword_values = {}
+        weights = {}
 
-    # Implement A* algorithm to find the best path
-    def calculate_heuristic(link, target):
-        """Calculate heuristic value for a link based on how well it matches the target"""
+    def get_score(text, target, weights):
+        text = text.lower()
+        target = target.lower()
         score = 0
-        target_lower = target.lower()
-
-        # Check if target appears in href
-        if target_lower in link.get('href', '').lower():
-            score += 100
-
-        # Check if target appears in link text
-        if target_lower in link.get('text', '').lower():
-            score += 80
-
-        # Check if target appears in all text content (including child elements)
-        if target_lower in link.get('allTextContent', '').lower():
-            score += 75
-
-        # Check if target appears in title
-        if target_lower in link.get('title', '').lower():
-            score += 60
-
-        # Score based on keyword values in text content
-        text_to_check = (link.get('text', '') + ' ' + link.get('allTextContent', '')).lower()
-        for keyword, value in final_keyword_values.items():
-            if keyword in text_to_check:
-                score += value
-
-        # No site-specific hardcoded logic - keep it generic
-
+        if target in text: score += 50
+        for w, val in weights.items():
+            if w.lower() in text: score += val
         return score
 
-    # Calculate scores for all links
-    scored_links = []
-    for link in links_data:
-        score = calculate_heuristic(link, target)
-        if score > 0:  # Only include links that have some relevance
-            scored_links.append({
-                'href': link['href'],
-                'text': link['text'],
-                'all_text_content': link['allTextContent'],
-                'title': link['title'],
-                'score': score
-            })
+    # Rank candidates by Link Text first
+    scored_candidates = []
+    seen_hrefs = set()
+    
+    for l in links_data:
+        href = l['href']
+        if href in seen_hrefs or href == current_url or 'javascript:' in href: continue
+        seen_hrefs.add(href)
+        
+        score = get_score(l['text'] + " " + l['title'], target, weights)
+        scored_candidates.append({**l, 'initial_score': score})
+    
+    # Take top 3 candidates to Scout
+    scored_candidates.sort(key=lambda x: x['initial_score'], reverse=True)
+    top_candidates = scored_candidates[:3]
+    
+    best_candidate = None
+    best_final_score = -1
+    
+    scout_logs = []
 
-    # Sort by score (descending)
-    scored_links.sort(key=lambda x: x['score'], reverse=True)
+    # 2. LAUNCH GRAPPLING HOOK (New Tab)
+    # Open new tab
+    driver.execute_script("window.open('');")
+    driver.switch_to.window(driver.window_handles[-1])
+    
+    try:
+        if not top_candidates:
+             scout_logs.append("No links found on current page.")
+        
+        for candidate in top_candidates:
+            url = candidate['href']
+            try:
+                # Go to page
+                driver.get(url)
+                # Quick content scrape
+                page_text = driver.find_element_by_tag_name('body').text[:10000] # First 10k chars
+                
+                # Score content
+                relevance_score = get_score(page_text, target, weights)
+                # Bonus if title matches
+                if target.lower() in driver.title.lower():
+                    relevance_score += 30
+                
+                final_score = candidate['initial_score'] + relevance_score
+                
+                log = f"Scouted {url} | TextScore: {candidate['initial_score']} | ContentScore: {relevance_score} | Total: {final_score}"
+                scout_logs.append(log)
+                
+                if final_score > best_final_score:
+                    best_final_score = final_score
+                    best_candidate = candidate
+                    best_candidate['final_score'] = final_score
+                    best_candidate['found_on_page'] = True
+                    
+            except Exception as e:
+                scout_logs.append(f"Failed to scout {url}: {str(e)}")
+                
+    finally:
+        # 3. CLEANUP
+        # Check if tab is still open before closing
+        try:
+            if len(driver.window_handles) > 1:
+                driver.close() # Close scout tab
+            driver.switch_to.window(original_window)
+        except:
+             pass
 
-    # Prepare result
-    result = {
-        'current_url': current_url,
-        'target': target,
-        'path_found': len(scored_links) > 0,
-        'best_matches': scored_links[:5],  # Top 5 matches
-        'recommended_action': None
-    }
-
-    if scored_links:
-        best_match = scored_links[0]
-        result['recommended_action'] = {
-            'action': 'click',
-            'element': best_match['href'],
-            'text': best_match['text'],
-            'all_text_content': best_match['all_text_content'],
-            'reason': f"Highest scoring link for target '{target}' with score {best_match['score']}"
-        }
-
-    # Format output as requested
-    output_lines = ["[Greater A*]: Search Results"]
-    output_lines.append(f"Target: {target}")
-    output_lines.append(f"Current URL: {current_url}")
-    output_lines.append(f"Path Found: {'Yes' if len(scored_links) > 0 else 'No'}")
-
-    if scored_links:
-        output_lines.append("Best Matches:")
-        for i, match in enumerate(scored_links[:5], 1):
-            output_lines.append(f"  {i}. Action: click | Element: {match['href'][:50]}... | Text: '{match['text'][:30]}...' | Score: {match['score']} | Heuristic: Matched target '{target}'")
-
-    if scored_links:
-        best_match = scored_links[0]
-        output_lines.append(f"[Greater A*]: Recommended Action: click on '{best_match['text']}' | Reason: Highest scoring link for target '{target}' | Score: {best_match['score']}")
-
-    output_text = "\n".join(output_lines)
-
-    # Return both the formatted text and the JSON data
-    return output_text + "\n\n" + json.dumps(result, indent=2)
+    # 4. RESULT
+    if best_candidate and best_final_score > 0:
+        return json.dumps({
+            "best_url": best_candidate['href'],
+            "confidence_score": best_candidate['final_score'],
+            "reason": f"Grappling Hook verified content relevance. {best_candidate['text']}",
+            "logs": scout_logs
+        }, indent=2)
+    else:
+        return json.dumps({
+            "error": "No good path found.",
+            "logs": scout_logs,
+            "top_links_checked": [c['href'] for c in top_candidates]
+        }, indent=2)
 
 @tool
 def get_address() -> str:
@@ -587,9 +584,118 @@ def quit_browser() -> str:
     import helium
     try:
         helium.kill_browser()
-        return "[Browser Quit]: Browser has been successfully closed"
+        return "[Browser Quit]: Browser has been successfully closed. To finish the task, you MUST now output a code block with your final answer."
     except Exception as e:
+
         return f"[Browser Quit]: Error closing browser - {str(e)}"
+
+@tool
+def think(query: str) -> str:
+    """
+    The 'Cognitive Engine' (Claude 3 Opus). Call this tool to THINK STRATEGICALLY before acting.
+    
+    This uses a specialized "Thought Engine" pattern:
+    1. It pauses to reason internally (generating a step-by-step plan).
+    2. It evaluates its own plan for confidence.
+    3. It returns a guiding strategy.
+    
+    Use this when:
+    - You are starting a complex task.
+    - You need to interpret vague user intent.
+    - You want to verify if your next move is optimal.
+
+    Args:
+        query: The context or dilemma you need to think about.
+    Returns:
+        The strategic thought process and plan.
+    """
+    try:
+        import anthropic
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            return "Thinking Error: ANTHROPIC_API_KEY not found in environment."
+            
+        client = anthropic.Anthropic(api_key=api_key)
+
+        # 1. Define the Cognition Tool
+        thought_tool = {
+            "name": "thought_engine",
+            "description": "A tool for extended cognition. Use this to break down complex problems, plan steps, and verify logic before responding.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "reasoning": {
+                        "type": "string",
+                        "description": "Detailed internal monologue and step-by-step planning."
+                    },
+                    "confidence_score": {
+                        "type": "number",
+                        "description": "0-1 scale of how sure the model is about the plan."
+                    }
+                },
+                "required": ["reasoning"]
+            }
+        }
+        messages = [{"role": "user", "content": query}]
+        
+        # 2. Force Opus to use the thought tool first
+        # Accessing beta features requires using client.beta.messages.create
+        response = client.beta.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=4000,
+            system="You are the Strategic Brain of an autonomous web agent. Your goal is to analyze the situation, deduce the optimal strategy, and guide the agent. You must use the 'thought_engine' to reason step-by-step before giving your final plan. CRITICAL: If the task is complete based on current observations, your plan MUST tell the agent to call `final_answer(...)` immediately to terminate.",
+            tools=[thought_tool],
+            tool_choice={"type": "tool", "name": "thought_engine"},
+            messages=messages,
+            betas=["context-1m-2025-08-07"]
+        )
+
+
+        # Capture the "Extended Cognition"
+        thought_output = "No reasoning provided."
+        tool_use_id = None
+        
+        for block in response.content:
+            if block.type == 'tool_use' and block.name == 'thought_engine':
+                thought_output = block.input.get('reasoning', '')
+                tool_use_id = block.id
+                break
+
+        # 3. Finalize Output
+        # Append the thought to history and let Opus finish the task
+        messages.append({"role": "assistant", "content": response.content})
+        
+        # CRITICAL FIX: If a tool was used, we MUST provide the tool result before the user speaks again
+        if tool_use_id:
+            messages.append({
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tool_use_id,
+                        "content": "Thoughts recorded successfully."
+                    }
+                ]
+            })
+        
+        # Now add the instruction to execute the plan
+        messages.append({
+            "role": "user", 
+            "content": "Thought processed. Now execute your plan and provide the final response."
+        })
+
+        final_response = client.beta.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=4000,
+            system="You are the Strategic Brain of an autonomous web agent. Synthesize your previous thoughts into a clear, actionable plan for the agent. If the task is done, explicitly command the agent to use `final_answer()`.",
+            messages=messages,
+            betas=["context-1m-2025-08-07"]
+        )
+        
+        return f"--- THOUGHT ENGINE ---\n{thought_output}\n\n--- STRATEGIC PLAN ---\n{final_response.content[0].text}"
+
+    except Exception as e:
+        return f"Thinking unavailable: {str(e)}"
 
 @tool
 def search_item_ctrl_f(text: str, nth_result: int = 1) -> str:
@@ -688,12 +794,41 @@ def initialize_driver():
     chrome_options.add_argument("--window-size=1000,1350")
     chrome_options.add_argument("--disable-pdf-viewer")
     chrome_options.add_argument("--window-position=0,0")
+    
+    # Use the existing user profile
+    # C:\Users\darcy\AppData\Local\Google\Chrome\User Data\Profile 16
+    user_data_path = r"C:\Users\darcy\AppData\Local\Google\Chrome\User Data"
+    profile_dir = "Profile 16"
+    
+    # KILL CHROME BEFORE STARTING to release the profile lock
+    # This is aggressive but necessary for repurposing a real user profile
+    import platform
+    import subprocess
+    if platform.system() == "Windows":
+        try:
+            # Kill chrome.exe to free up the User Data Dir
+            print(f"Forcefully closing Chrome to unlock profile '{profile_dir}'...")
+            subprocess.run(["taskkill", "/F", "/IM", "chrome.exe"], 
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(3.0) # Wait longer for file locks to release
+        except Exception as e:
+            print(f"Warning: Failed to kill existing Chrome processes: {e}")
+
+    chrome_options.add_argument(f"user-data-dir={user_data_path}")
+    chrome_options.add_argument(f"profile-directory={profile_dir}")
+    
+    # Critical fixes for stability
+    # Removed remote-debugging-port as it caused hangs. Letting Selenium find its own port.
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    
     return helium.start_chrome(headless=False, options=chrome_options)
 
 def initialize_agent(model, experience_memory: ExperienceMemory):
     """Initialize the CodeAgent with the specified model and custom tools."""
     return CodeAgent(
-        tools=[WebSearchTool(), go_back, close_popups, search_item_ctrl_f, get_DOM_Tree, set_browser_url, create_new_tab, switch_to_tab, close_tab, find_path_to_target, get_address, get_geolocation, quit_browser],
+        tools=[WebSearchTool(), go_back, close_popups, search_item_ctrl_f, get_DOM_Tree, set_browser_url, create_new_tab, switch_to_tab, close_tab, find_path_to_target, get_address, get_geolocation, think],
         model=model,
         additional_authorized_imports=["helium"],
         step_callbacks=[save_screenshot],
@@ -716,6 +851,7 @@ def run_agent_with_args(args):
     model = load_model(args.model_type, args.model_id)
 
     global driver
+    
     driver = initialize_driver()
 
     # Navigate to the specified URL instead of starting on a blank page
@@ -747,13 +883,21 @@ def run_agent_with_args(args):
     result = agent.run(enhanced_prompt)
 
     # After execution, save the experience
+    # Safely get final URL
+    final_url = "unknown"
+    try:
+        if driver:
+            final_url = driver.current_url
+    except:
+        pass
+
     experience = {
         'task': prompt,
         'start_url': args.url,
         'context': enhanced_prompt,
         'actions': [],  # Would be filled with actual actions taken
         'success': True,  # Simplified - in a real implementation, this would be determined by the outcome
-        'final_url': driver.current_url if driver else "unknown",
+        'final_url': final_url,
         'result': str(result) if result else "No result"
     }
     experience_memory.add_experience(experience)

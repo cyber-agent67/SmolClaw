@@ -49,12 +49,12 @@ def parse_arguments():
     parser.add_argument("--url", default="https://www.google.com", help="Starting URL")
     parser.add_argument("--prompt", help="Natural language prompt")
     parser.add_argument("--output", default=os.path.join("data", "output.json"), help="Output JSON file path")
-
-    # Additional arguments for model configuration
     parser.add_argument("--model-type", type=str, default="LiteLLMModel",
                        help="The model type to use (e.g., OpenAIServerModel, LiteLLMModel, TransformersModel, InferenceClientModel)")
     parser.add_argument("--model-id", type=str, default="gpt-4o",
                        help="The model ID to use for the specified model type")
+
+
 
     return parser.parse_args()
 
@@ -66,32 +66,112 @@ def main():
         from agent import run_agent_with_args
 
         # Enhance the prompt to make the agent smarter about navigation
+        # Create the prompt refinement function
+        def refine_prompt_with_opus(raw_prompt):
+            import hashlib
+            import json
+            import re
+            
+            # Simple keyword/prompt cache
+            cache_file = "keyword_cache.json"
+            cache = {}
+            
+            # Load cache if exists
+            if os.path.exists(cache_file):
+                try:
+                    with open(cache_file, 'r') as f:
+                        cache = json.load(f)
+                except:
+                    pass
+            
+            # Create a "bag of words" string of the raw prompt to use as key
+            # 1. Lowercase and remove punctuation
+            clean_prompt = re.sub(r'[^\w\s]', '', raw_prompt.lower())
+            # 2. Split into words, sort them, and join
+            words = sorted(list(set(clean_prompt.split())))
+            bag_of_words = " ".join(words)
+            
+            print(f"Prompt Bag-of-Words: '{bag_of_words}'")
+            
+            if bag_of_words in cache:
+                print(f"Loading refined prompt from cache for '{raw_prompt}'")
+                return cache[bag_of_words]
+
+            try:
+                import anthropic
+                api_key = os.environ.get("ANTHROPIC_API_KEY")
+                if not api_key:
+                    print("Warning: ANTHROPIC_API_KEY not found. Using raw prompt.")
+                    return raw_prompt
+                    
+                client = anthropic.Anthropic(api_key=api_key)
+                print(f"Refining prompt with Claude 3 Opus (actually Sonnet 4.5)... '{raw_prompt}'")
+                
+                message = client.beta.messages.create(
+                    model="claude-sonnet-4-5",
+                    max_tokens=1024,
+                    temperature=0,
+                    system="You are an expert Prompt Engineer for an autonomous web agent. Your goal is to take a user's raw request and rewrite it into a precise, step-by-step strategic instruction that maximizes the agent's success rate. Analyze the intent, break it down, and output ONLY the refined prompt. IMPORTANT: Make sure the final instruction explicitly tells the agent to return the requested information in a clear and concise JSON format, and to use `final_answer(...)` to terminate.",
+                    messages=[
+                        {"role": "user", "content": f"Refine this user request for a web agent: {raw_prompt}"}
+                    ],
+                    betas=["context-1m-2025-08-07"]
+                )
+                refined = message.content[0].text
+                print(f"Refined Prompt: {refined}")
+                
+                # Save to cache
+                cache[bag_of_words] = refined
+                with open(cache_file, 'w') as f:
+                    json.dump(cache, f, indent=2)
+                    
+                return refined
+            except Exception as e:
+                print(f"Prompt refinement failed: {e}. Using raw prompt.")
+                return raw_prompt
+
+        # Refine the prompt
+        refined_user_prompt = refine_prompt_with_opus(args.prompt) if args.prompt else "Perform a web search and navigate to find relevant information"
+
+        # Define the system prompt with the REFINED user prompt
         enhanced_prompt = f"""
-        You are an autonomous web navigation agent operating as a MACHINE, not a human.
-        You do NOT browse like a person. You operate using structured programmatic access to URLs, DOM trees, link graphs, and browser controls.
+        You are an intelligent, autonomous web navigation agent acting as a STRATEGIC ADVISOR and EXECUTIONER.
+        Your goal is not just to "click buttons", but to understand the *human intent* behind the request and deliver the most helpful result.
 
-        Your task: {args.prompt}
+        USER REQUEST (Refined): "{refined_user_prompt}"
 
-        ENVIRONMENT INFORMATION:
-        1. Current URL: {args.url}
-        2. You have access to the full DOM tree of the current page
-        3. You can see all hyperlinks and hrefs that connect directly to other pages
+        **ADVISOR PROTOCOL (Phase 1: Deep Cognition)**
+        CRITICAL: You are powered by a multi-model architecture.
+        You MUST start every complex task by using your `think` tool.
+        This triggers your "Higher Cognition" (Claude 3 Opus) to analyze the user's request and build a high-level strategy.
+        
+        DO NOT PROCEED WITHOUT THINKING FIRST.
+        
+        1. **Call `think(query=...)`**: Ask your higher brain how to approach this specific user goal.
+        2. **Execute Strategy**: Follow the plan returned by the thought engine.
 
-        NAVIGATION STRATEGY:
-        1. First, use the WebSearchTool to understand the directory structure of the target site
-        2. Learn about the site's URL patterns and navigation structure
-        3. Parse the DOM tree to understand the current page structure
-        4. Identify hyperlinks and hrefs that lead to the target destination
-        5. If you find a direct link to the next page you need, CHANGE THE URL DIRECTLY
-        6. Navigate efficiently by using URL navigation when possible
-        7. Trust structured data (DOM, URLs) over visual elements
-        8. Minimize clicks by going directly to target URLs when available
+        **EXECUTION PROTOCOL (Phase 2: ReAct - Reason & Act)**
+        Operate as a machine, but follow the Advisor's plan.
+        Use the following loop for every step:
 
-        Remember: You are a machine operating in a browser environment.
-        You see DOM trees, URLs, and structured data - not visual elements.
-        When you see a hyperlink to your target, navigate directly via URL.
+        1. **OBSERVE**: Scan the current URL and DOM. What relevant information is present?
+        2. **CHECK PLAN**: Are we on track with the Advisor's strategy?
+        3. **THINK**: CRITICAL! You MUST output a "Thought:" block explaining your reasoning before generating code.
+           Example:
+           Thought: The user wants to find the release. The Advisor said to check the 'Releases' tab. I see a link for 'Releases'. I will click it.
+        4. **ACT**: Generate Python code to use tools (WebSearch, set_browser_url, Grappling Hook/find_path_to_target, etc.).
 
-        IMPORTANT: When you have completed the task, use the quit_browser() tool to close the browser.
+        **NAVIGATION RULES**:
+        - **Scout Ahead**: Use `find_path_to_target` (Grappling Hook) to find the best link before clicking.
+        - **Search First**: If the destination is ambiguous, use `WebSearchTool` to find the exact entry point.
+        - **Structured Data**: Prefer extracting data from the DOM properties or structured text over visual guesses.
+
+        **ENVIRONMENT**:
+        - Current URL: {args.url}
+        - Tools allow: DOM access, URL navigation, Tab management, Searching, Deep Thinking.
+
+        IMPORTANT:
+        - When completed, IMMEDIATELY output a code block with the final result, formatted clearly for the user.
         """
 
         # Create a mock args object with the enhanced prompt
