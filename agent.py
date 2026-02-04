@@ -9,6 +9,8 @@ import os
 import time
 import base64
 from typing import Dict, Any, List
+from selenium import webdriver
+import helium
 from datetime import datetime
 import pickle
 import re
@@ -794,34 +796,6 @@ def initialize_driver():
     chrome_options.add_argument("--window-size=1000,1350")
     chrome_options.add_argument("--disable-pdf-viewer")
     chrome_options.add_argument("--window-position=0,0")
-    
-    # Use the existing user profile
-    # C:\Users\darcy\AppData\Local\Google\Chrome\User Data\Profile 16
-    user_data_path = r"C:\Users\darcy\AppData\Local\Google\Chrome\User Data"
-    profile_dir = "Profile 16"
-    
-    # KILL CHROME BEFORE STARTING to release the profile lock
-    # This is aggressive but necessary for repurposing a real user profile
-    import platform
-    import subprocess
-    if platform.system() == "Windows":
-        try:
-            # Kill chrome.exe to free up the User Data Dir
-            print(f"Forcefully closing Chrome to unlock profile '{profile_dir}'...")
-            subprocess.run(["taskkill", "/F", "/IM", "chrome.exe"], 
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(3.0) # Wait longer for file locks to release
-        except Exception as e:
-            print(f"Warning: Failed to kill existing Chrome processes: {e}")
-
-    chrome_options.add_argument(f"user-data-dir={user_data_path}")
-    chrome_options.add_argument(f"profile-directory={profile_dir}")
-    
-    # Critical fixes for stability
-    # Removed remote-debugging-port as it caused hangs. Letting Selenium find its own port.
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
     
     return helium.start_chrome(headless=False, options=chrome_options)
 
