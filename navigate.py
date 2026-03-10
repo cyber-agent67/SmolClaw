@@ -49,10 +49,34 @@ def parse_arguments():
     parser.add_argument("--url", default="https://www.google.com", help="Starting URL")
     parser.add_argument("--prompt", help="Natural language prompt")
     parser.add_argument("--output", default=os.path.join("data", "output.json"), help="Output JSON file path")
+    parser.add_argument(
+        "--runtime",
+        choices=["smolclaw", "smolhand"],
+        default="smolclaw",
+        help="Execution runtime: smolclaw (browser agent) or smolhand (small-LLM tool-calling)",
+    )
     parser.add_argument("--model-type", type=str, default="LiteLLMModel",
                        help="The model type to use (e.g., OpenAIServerModel, LiteLLMModel, TransformersModel, InferenceClientModel)")
     parser.add_argument("--model-id", type=str, default="gpt-4o",
                        help="The model ID to use for the specified model type")
+    parser.add_argument(
+        "--smolhand-model",
+        type=str,
+        default="llama3.1:8b",
+        help="Model name for smolhand runtime (OpenAI-compatible endpoint)",
+    )
+    parser.add_argument(
+        "--smolhand-base-url",
+        type=str,
+        default="http://localhost:11434/v1",
+        help="Base URL for smolhand OpenAI-compatible API (e.g. Ollama /v1)",
+    )
+    parser.add_argument(
+        "--smolhand-api-key",
+        type=str,
+        default="ollama",
+        help="API key for smolhand OpenAI-compatible API",
+    )
 
 
 
@@ -60,6 +84,37 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
+
+    if args.runtime == "smolhand":
+        from smolhand import OpenAICompatClient, SmolhandRunner, default_tools
+
+        llm = OpenAICompatClient(
+            model=args.smolhand_model,
+            base_url=args.smolhand_base_url,
+            api_key=args.smolhand_api_key,
+        )
+        runner = SmolhandRunner(llm_client=llm, tools=default_tools())
+
+        prompt = args.prompt or "What is the weather in Paris?"
+        result = runner.run(prompt)
+
+        output_dir = os.path.dirname(args.output)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        output = {
+            "runtime": "smolhand",
+            "model": args.smolhand_model,
+            "base_url": args.smolhand_base_url,
+            "prompt": prompt,
+            "result": result,
+        }
+        with open(args.output, "w", encoding="utf-8") as f:
+            json.dump(output, f, indent=2)
+
+        print(f"Results saved to {args.output}")
+        print(json.dumps(output, indent=2))
+        return
 
     try:
         # Import agent here to avoid circular dependencies
