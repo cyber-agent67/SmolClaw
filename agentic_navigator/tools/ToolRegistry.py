@@ -1,11 +1,17 @@
 """Tool registry that bridges EIM interactions to smolagents @tool wrappers."""
 
 import json
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 from helium import get_driver
 from smolagents import WebSearchTool, tool
 
+from browser_subagents.services import (
+    BrowserLayerService,
+    DOMExplorerLayerService,
+    FlorenceVisionLayerService,
+    QLearningLayerService,
+)
 from agentic_navigator.entities.browser.Browser import Browser
 from agentic_navigator.entities.browser.NavigationStack import NavigationStack
 from agentic_navigator.entities.browser.Tab import Tab
@@ -14,6 +20,41 @@ _navigation_stack = NavigationStack()
 _tabs = {}
 _tab_counter = 0
 _current_tab_id = None
+_task_q_layer = QLearningLayerService()
+
+
+def _registry_tools():
+    """Single source of truth for tool registration order."""
+    return [
+        WebSearchTool(),
+        go_back,
+        close_popups,
+        search_item_ctrl_f,
+        get_DOM_Tree,
+        get_browser_snapshot,
+        analyze_visual_context,
+        explore_dom_with_astar,
+        score_task_progress_q_learning,
+        list_open_tabs,
+        set_browser_url,
+        create_new_tab,
+        switch_to_tab,
+        close_tab,
+        find_path_to_target,
+        get_address,
+        get_geolocation,
+        think,
+        quit_browser,
+    ]
+
+
+def _tool_name(tool_obj) -> str:
+    """Normalizes function/class tool objects to a displayable name."""
+    if hasattr(tool_obj, "name") and tool_obj.name:
+        return str(tool_obj.name)
+    if hasattr(tool_obj, "__name__"):
+        return str(tool_obj.__name__)
+    return tool_obj.__class__.__name__
 
 
 def _set_active_tab(tab_id: Optional[str]) -> None:
@@ -39,10 +80,9 @@ def _sync_tab_snapshot(tab_id: str, append_history: bool = False) -> None:
 
 def _probe_current_page() -> Tuple[bool, str]:
     try:
-        driver = get_driver()
-        current_url = driver.current_url
-        _ = driver.title
-        page_source = driver.page_source
+        page = BrowserLayerService.current_page_state()
+        current_url = str(page.get("url", ""))
+        page_source = page.get("page_source", "")
         if not page_source:
             return False, "Current page source is empty."
         return True, current_url
@@ -102,13 +142,61 @@ def get_navigation_stack() -> NavigationStack:
 @tool
 def get_DOM_Tree() -> str:
     """Retrieves the full DOM tree of the current page as a JSON string."""
-    from agentic_navigator.interactions.dom.GetTree import GetDOMTree
-
     recovery_note = _recover_live_page("get_DOM_Tree")
-    dom_tree = GetDOMTree.execute()
+    dom_tree_json = BrowserLayerService.dom_tree_json()
     if recovery_note:
-        return f"{recovery_note}\n{dom_tree.json_string}"
-    return dom_tree.json_string
+        return f"{recovery_note}\n{dom_tree_json}"
+    return dom_tree_json
+
+
+@tool
+def get_browser_snapshot() -> str:
+    """Returns a normalized JSON snapshot of URL/title/DOM/link context from the shared browser tool layer."""
+    recovery_note = _recover_live_page("get_browser_snapshot")
+    payload = BrowserLayerService.page_snapshot_json()
+    if recovery_note:
+        return f"{recovery_note}\n{payload}"
+    return payload
+
+
+@tool
+def analyze_visual_context(prompt_hint: str = "") -> str:
+    """Layer 2 vision bridge: captures screenshot and returns Florence-backed visual context for main agent prompting."""
+    recovery_note = _recover_live_page("analyze_visual_context")
+    payload = FlorenceVisionLayerService.describe_current_view_json(prompt_hint)
+    if recovery_note:
+        return f"{recovery_note}\n{payload}"
+    return payload
+
+
+@tool
+def explore_dom_with_astar(target: str, keyword_values: str = None, top_k: int = 5) -> str:
+    """Layer 3 exploration: ranks current-page links using A* heuristic signals around href/text context."""
+    recovery_note = _recover_live_page("explore_dom_with_astar")
+
+    keyword_weights = {}
+    if keyword_values:
+        try:
+            payload = json.loads(keyword_values)
+            if isinstance(payload, dict):
+                keyword_weights = payload
+        except Exception:
+            keyword_weights = {}
+
+    result = DOMExplorerLayerService.explore_json(target, keyword_weights=keyword_weights, top_k=top_k)
+    if recovery_note:
+        return f"{recovery_note}\n{result}"
+    return result
+
+
+@tool
+def score_task_progress_q_learning(task_prompt: str, llm_score: float = None, action_name: str = "observe") -> str:
+    """Layer 4 navigation reward: computes task/page vector reward and updates Q-value for current page state."""
+    recovery_note = _recover_live_page("score_task_progress_q_learning")
+    payload = _task_q_layer.score_current_page_json(task_prompt, action_name=action_name, llm_score=llm_score)
+    if recovery_note:
+        return f"{recovery_note}\n{payload}"
+    return payload
 
 
 @tool
@@ -315,41 +403,9 @@ class ToolRegistry:
     @staticmethod
     def get_all_tools():
         """Returns all registered tools for the agent."""
-        return [
-            WebSearchTool(),
-            go_back,
-            close_popups,
-            search_item_ctrl_f,
-            get_DOM_Tree,
-            list_open_tabs,
-            set_browser_url,
-            create_new_tab,
-            switch_to_tab,
-            close_tab,
-            find_path_to_target,
-            get_address,
-            get_geolocation,
-            think,
-            quit_browser,
-        ]
+        return _registry_tools()
 
     @staticmethod
     def get_tool_names():
         """Returns names of all registered tools."""
-        return [
-            "WebSearchTool",
-            "go_back",
-            "close_popups",
-            "search_item_ctrl_f",
-            "get_DOM_Tree",
-            "list_open_tabs",
-            "set_browser_url",
-            "create_new_tab",
-            "switch_to_tab",
-            "close_tab",
-            "find_path_to_target",
-            "get_address",
-            "get_geolocation",
-            "think",
-            "quit_browser",
-        ]
+        return [_tool_name(t) for t in _registry_tools()]

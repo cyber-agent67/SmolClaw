@@ -1,9 +1,7 @@
-"""SMOL claw entrypoint.
+#!/usr/bin/env python3
+"""Main entrypoint that delegates runtime orchestration to loop.py."""
 
-Delegates to the existing CLI flow in navigate.py.
-"""
-
-from navigate import main
+from smolclaw.loop import main
 
 
 if __name__ == "__main__":

@@ -9,7 +9,6 @@ class InteractiveElement:
         self.tag: str = ""
         self.role: str = ""
         self.text: str = ""
-        self.placeholder: str = ""
         self.aria_label: str = ""
         self.href: str = ""
         self.element_type: str = ""

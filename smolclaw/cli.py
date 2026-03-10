@@ -11,7 +11,7 @@ from typing import List
 import click
 
 from smolclaw.config import load_config, log_path, pid_path, save_config
-from smolclaw.tui_client import run_tui_sync
+from smolclaw.gateway_tui_client import run_tui_sync
 
 
 HUGGINGFACE_BASE_URL = "https://router.huggingface.co/v1"
@@ -28,8 +28,8 @@ HUGGINGFACE_MODELS = [
         "SMOL claw CLI\n\n"
         "Core commands:\n"
         "  smolclaw onboard                Interactive Hugging Face setup and login\n"
+        "  smolclaw tui                    Personal assistant shell (recommended)\n"
         "  smolclaw gateway start|stop|restart\n"
-        "  smolclaw tui                    Connect terminal UI to websocket gateway\n"
     )
 )
 def main() -> None:
@@ -90,16 +90,13 @@ def _is_running(pid: int) -> bool:
         return False
 
 
-@gateway.command("start", help="Start websocket gateway in background.")
-@click.option("--host", default="127.0.0.1", show_default=True)
-@click.option("--port", default=8765, type=int, show_default=True)
-def gateway_start(host: str, port: int) -> None:
+def _start_gateway_process(host: str, port: int) -> tuple[int, bool]:
+    """Starts gateway if needed and returns (pid, started_now)."""
     pid_file = pid_path()
     if pid_file.exists():
         existing = int(pid_file.read_text(encoding="utf-8").strip())
         if _is_running(existing):
-            click.echo(f"Gateway already running (pid={existing})")
-            return
+            return existing, False
         pid_file.unlink(missing_ok=True)
 
     log_file = open(log_path(), "a", encoding="utf-8")
@@ -112,12 +109,23 @@ def gateway_start(host: str, port: int) -> None:
         start_new_session=True,
     )
     pid_file.write_text(str(proc.pid), encoding="utf-8")
+    return proc.pid, True
+
+
+@gateway.command("start", help="Start websocket gateway in background.")
+@click.option("--host", default="127.0.0.1", show_default=True)
+@click.option("--port", default=8765, type=int, show_default=True)
+def gateway_start(host: str, port: int) -> None:
+    pid, started_now = _start_gateway_process(host, port)
 
     cfg = load_config()
     cfg.update({"gateway_host": host, "gateway_port": port})
     save_config(cfg)
 
-    click.echo(f"Gateway started (pid={proc.pid}) at ws://{host}:{port}/ws")
+    if started_now:
+        click.echo(f"Gateway started (pid={pid}) at ws://{host}:{port}/ws")
+    else:
+        click.echo(f"Gateway already running (pid={pid})")
 
 
 @gateway.command("stop", help="Stop websocket gateway.")
@@ -170,13 +178,25 @@ def gateway_status() -> None:
         click.echo("Gateway status: stale pid file")
 
 
-@main.command(help="Connect terminal UI to smolclaw websocket gateway.")
+@main.command(help="Start personal assistant TUI (auto-connects to gateway).")
 @click.option("--url", default=None, help="WebSocket URL (default from onboarding/gateway config)")
-def tui(url: str | None) -> None:
+@click.option(
+    "--ensure-gateway/--no-ensure-gateway",
+    default=True,
+    show_default=True,
+    help="Auto-start local websocket gateway when using default URL.",
+)
+def tui(url: str | None, ensure_gateway: bool) -> None:
     cfg = load_config()
     host = cfg.get("gateway_host", "127.0.0.1")
     port = int(cfg.get("gateway_port", 8765))
     ws_url = url or f"ws://{host}:{port}/ws"
+
+    if ensure_gateway and url is None:
+        pid, started_now = _start_gateway_process(host, port)
+        if started_now:
+            click.echo(f"Started assistant gateway (pid={pid})")
+
     run_tui_sync(ws_url)
 
 

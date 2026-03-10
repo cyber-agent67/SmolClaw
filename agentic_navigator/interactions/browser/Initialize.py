@@ -19,6 +19,9 @@ class InitializeBrowser:
         chrome_options.add_argument(f"--window-size={config.window_width},{config.window_height}")
         chrome_options.add_argument("--disable-pdf-viewer")
         chrome_options.add_argument(f"--window-position={config.window_x},{config.window_y}")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-gpu")
 
         browser = Browser()
         browser.driver = helium.start_chrome(headless=config.headless, options=chrome_options)

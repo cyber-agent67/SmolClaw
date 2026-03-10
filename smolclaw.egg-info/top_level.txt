@@ -1,0 +1,4 @@
+agentic_navigator
+browser_subagents
+smolclaw
+smolhand

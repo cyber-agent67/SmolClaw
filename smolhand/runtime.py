@@ -3,12 +3,76 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import requests
+
+from smolclaw.templates_loader import render_template
+
+
+_SMOLHAND_BROWSER = None
+
+
+def _ensure_browser_started(headless: bool = False):
+    """Starts browser lazily for smolhand page-session operations."""
+    global _SMOLHAND_BROWSER
+
+    if _SMOLHAND_BROWSER is not None and getattr(_SMOLHAND_BROWSER, "is_running", False):
+        return _SMOLHAND_BROWSER
+
+    from agentic_navigator.config.BrowserConfig import BrowserConfig
+    from agentic_navigator.interactions.browser.Initialize import InitializeBrowser
+
+    config = BrowserConfig()
+    # In dev containers without a display server, force headless mode.
+    config.headless = bool(headless) or not bool(os.environ.get("DISPLAY"))
+    _SMOLHAND_BROWSER = InitializeBrowser.execute(config)
+    return _SMOLHAND_BROWSER
+
+
+def ensure_connected_page(url: str, headless: bool = False) -> str:
+    """Declarative smolhand API to connect browser session to a single page."""
+    if not isinstance(url, str) or not url.strip():
+        return "Smolhand connection error: url must be a non-empty string."
+
+    try:
+        _ensure_browser_started(headless=headless)
+        from agentic_navigator.tools.ToolRegistry import get_browser_snapshot, set_browser_url
+
+        nav_result = set_browser_url(url.strip())
+        snapshot = get_browser_snapshot()
+        return json.dumps(
+            {
+                "status": "connected",
+                "url": url.strip(),
+                "navigation": nav_result,
+                "snapshot": json.loads(snapshot),
+            },
+            indent=2,
+        )
+    except Exception as exc:
+        return f"Smolhand connection error: {exc}"
+
+
+def close_page_session() -> str:
+    """Closes the smolhand-managed browser session if one is running."""
+    global _SMOLHAND_BROWSER
+
+    if _SMOLHAND_BROWSER is None or not getattr(_SMOLHAND_BROWSER, "is_running", False):
+        return "No active smolhand browser session."
+
+    try:
+        from agentic_navigator.interactions.browser.Quit import QuitBrowser
+
+        result = QuitBrowser.execute(_SMOLHAND_BROWSER)
+        _SMOLHAND_BROWSER = None
+        return result
+    except Exception as exc:
+        return f"Smolhand session close error: {exc}"
 
 
 @dataclass
@@ -75,21 +139,9 @@ class SmolhandRunner:
 
     def _build_system_prompt(self) -> str:
         tool_schemas = [tool.as_prompt_schema() for tool in self.tools.values()]
-        return (
-            "You are smolhand, a tool-using assistant.\n"
-            "You can inspect and navigate browser tabs. When the current page seems dead, blank, or inaccessible, "
-            "use the available tab tools and continue from another open live tab before giving up.\n"
-            "When a tool is required, respond ONLY with valid JSON in this exact shape:\n"
-            "{\n"
-            '  "tool_call": {\n'
-            '    "name": "<tool_name>",\n'
-            '    "arguments": { ... }\n'
-            "  }\n"
-            "}\n"
-            "If no tool is required, answer normally.\n"
-            "Available tools JSON schema:\n"
-            f"{json.dumps(tool_schemas, indent=2)}\n"
-            "If previous output was invalid JSON, correct it and output JSON only."
+        return render_template(
+            "prompts/smolhand_system.md",
+            {"tool_schemas_json": json.dumps(tool_schemas, indent=2)},
         )
 
     def _parse_tool_call(self, text: str) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
@@ -230,20 +282,6 @@ def _tool_definition_from_registry_tool(tool: Any) -> Optional[ToolDefinition]:
 def default_tools() -> List[ToolDefinition]:
     """Returns browser tools when available, with general-purpose fallbacks for standalone use."""
 
-    try:
-        from agentic_navigator.tools.ToolRegistry import ToolRegistry
-
-        registry_definitions = []
-        for registry_tool in ToolRegistry.get_all_tools():
-            definition = _tool_definition_from_registry_tool(registry_tool)
-            if definition is not None:
-                registry_definitions.append(definition)
-
-        if registry_definitions:
-            return registry_definitions
-    except Exception:
-        pass
-
     def get_time() -> str:
         return datetime.utcnow().isoformat() + "Z"
 
@@ -255,7 +293,7 @@ def default_tools() -> List[ToolDefinition]:
         response.raise_for_status()
         return response.text[:max_chars]
 
-    return [
+    utility_tools = [
         ToolDefinition(
             name="fetch_url",
             description="Fetch the text content of a URL",
@@ -286,3 +324,44 @@ def default_tools() -> List[ToolDefinition]:
             func=echo,
         ),
     ]
+
+    try:
+        from agentic_navigator.tools.ToolRegistry import ToolRegistry
+
+        registry_definitions = []
+        for registry_tool in ToolRegistry.get_all_tools():
+            definition = _tool_definition_from_registry_tool(registry_tool)
+            if definition is not None:
+                registry_definitions.append(definition)
+
+        if registry_definitions:
+            registry_definitions.extend(
+                [
+                    ToolDefinition(
+                        name="connect_to_page",
+                        description=(
+                            "Declaratively connect smolhand to a single page URL before navigating/extracting."
+                        ),
+                        parameters={
+                            "type": "object",
+                            "properties": {
+                                "url": {"type": "string"},
+                                "headless": {"type": "boolean"},
+                            },
+                            "required": ["url"],
+                        },
+                        func=ensure_connected_page,
+                    ),
+                    ToolDefinition(
+                        name="close_page_session",
+                        description="Close the current smolhand-managed browser page session.",
+                        parameters={"type": "object", "properties": {}, "required": []},
+                        func=close_page_session,
+                    ),
+                ]
+            )
+            registry_definitions.extend(utility_tools)
+            return registry_definitions
+    except Exception:
+        pass
+    return utility_tools

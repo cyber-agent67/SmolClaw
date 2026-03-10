@@ -1,12 +1,15 @@
 """Enhance prompt interaction."""
 
+from smolclaw.templates_loader import render_template
+
 
 class EnhancePrompt:
     @staticmethod
     def execute(base_prompt: str, start_url: str) -> str:
-        return (
-            "You are SMOL claw. Navigate strategically and use tools precisely.\n"
-            f"Start URL: {start_url}\n"
-            "Return final result as JSON.\n\n"
-            f"Task: {base_prompt}"
+        return render_template(
+            "prompts/enhance_prompt.md",
+            {
+                "start_url": start_url,
+                "base_prompt": base_prompt,
+            },
         )

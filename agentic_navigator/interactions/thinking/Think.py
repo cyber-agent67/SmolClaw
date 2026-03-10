@@ -2,6 +2,8 @@
 
 import os
 
+from smolclaw.templates_loader import render_template
+
 
 class Think:
     @staticmethod
@@ -29,10 +31,7 @@ class Think:
                 },
             }
 
-            system_prompt = (
-                "You are the Strategic Brain of an autonomous web agent. "
-                "You must use the thought_engine tool to reason first."
-            )
+            system_prompt = render_template("prompts/think_system.md")
             messages = [{"role": "user", "content": query}]
 
             response = client.beta.messages.create(
@@ -79,7 +78,7 @@ class Think:
             final_response = client.beta.messages.create(
                 model="claude-sonnet-4-5",
                 max_tokens=4000,
-                system="Synthesize your thoughts into a clear, actionable plan.",
+                system=render_template("prompts/think_finalize_system.md"),
                 messages=messages,
                 betas=["context-1m-2025-08-07"],
             )

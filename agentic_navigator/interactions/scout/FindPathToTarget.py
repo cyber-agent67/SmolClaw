@@ -5,6 +5,8 @@ from typing import Optional
 
 from helium import get_driver
 
+from browser_subagents.exploration import HeuristicExplorer
+from browser_subagents.services import BrowserLayerService
 from agentic_navigator.entities.browser.ScoutResult import ScoutResult
 
 
@@ -16,57 +18,37 @@ class FindPathToTarget:
 
         driver = get_driver()
         original_window = driver.current_window_handle
-        current_url = driver.current_url
-
         try:
-            links_data = driver.execute_script(
-                """
-                var links = Array.from(document.querySelectorAll('a[href]'));
-                return links.map(function(link) {
-                    return {
-                        href: link.href,
-                        text: link.innerText.trim(),
-                        title: link.title || ''
-                    };
-                });
-                """
-            )
+            current_url = str(BrowserLayerService.current_page_state().get("url", ""))
+            links_data = BrowserLayerService.extract_links()
         except Exception:
             result.error = "Failed to extract links from current page"
             return result
 
         weights = {}
+        strategy = "q_learning"
         if keyword_values:
             try:
-                weights = json.loads(keyword_values)
+                payload = json.loads(keyword_values)
+                if isinstance(payload, dict):
+                    strategy = str(payload.get("__strategy", "q_learning"))
+                    weights = {
+                        key: value
+                        for key, value in payload.items()
+                        if key != "__strategy"
+                    }
             except Exception:
                 weights = {}
-
-        def get_score(text: str, target_text: str, weight_map: dict) -> int:
-            candidate = text.lower()
-            desired = target_text.lower()
-            score = 0
-            if desired in candidate:
-                score += 50
-            for token, value in weight_map.items():
-                if token.lower() in candidate:
-                    score += value
-            return score
-
-        scored_candidates = []
-        seen_hrefs = set()
-
-        for link in links_data:
-            href = link["href"]
-            if href in seen_hrefs or href == current_url or "javascript:" in href:
-                continue
-            seen_hrefs.add(href)
-
-            score = get_score(link["text"] + " " + link["title"], target, weights)
-            scored_candidates.append({**link, "initial_score": score})
-
-        scored_candidates.sort(key=lambda x: x["initial_score"], reverse=True)
-        top_candidates = scored_candidates[:3]
+        visit_counts = {}
+        explorer = HeuristicExplorer(strategy=strategy)
+        top_candidates = explorer.rank_links(
+            links=links_data,
+            current_url=current_url,
+            target=target,
+            keyword_weights=weights,
+            visit_counts=visit_counts,
+            top_k=3,
+        )
 
         best_candidate = None
         best_final_score = -1
@@ -81,18 +63,23 @@ class FindPathToTarget:
             for candidate in top_candidates:
                 url = candidate["href"]
                 try:
+                    visit_counts[url] = visit_counts.get(url, 0) + 1
                     driver.get(url)
                     page_text = driver.find_element("tag name", "body").text[:10000]
-
-                    relevance_score = get_score(page_text, target, weights)
-                    if target.lower() in driver.title.lower():
-                        relevance_score += 30
-
-                    final_score = candidate["initial_score"] + relevance_score
+                    final_score = explorer.score_page_content(
+                        page_text=page_text,
+                        page_title=driver.title,
+                        url=url,
+                        target=target,
+                        keyword_weights=weights,
+                        initial_score=float(candidate["initial_score"]),
+                        visit_count=visit_counts[url],
+                    )
+                    relevance_score = round(final_score - float(candidate["initial_score"]), 2)
                     result.logs.append(
                         "Scouted "
                         f"{url} | TextScore: {candidate['initial_score']} | "
-                        f"ContentScore: {relevance_score} | Total: {final_score}"
+                        f"ContentScore: {relevance_score} | Total: {final_score} | Strategy: {explorer.strategy}"
                     )
 
                     if final_score > best_final_score:
@@ -113,7 +100,10 @@ class FindPathToTarget:
         if best_candidate and best_final_score > 0:
             result.best_url = best_candidate["href"]
             result.confidence_score = best_candidate["final_score"]
-            result.reason = f"Grappling Hook verified content relevance. {best_candidate['text']}"
+            result.reason = (
+                "Grappling Hook verified content relevance using "
+                f"{explorer.strategy} scoring. {best_candidate['text']}"
+            )
         else:
             result.error = "No good path found."
             result.top_links_checked = [c["href"] for c in top_candidates]
