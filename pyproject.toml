@@ -17,6 +17,7 @@ dependencies = [
   "smolagents>=1.24.0",
   "helium>=5.1.1",
   "selenium>=4.20.0",
+  "pydantic>=2.0.0",
 ]
 
 [project.scripts]
@@ -28,5 +29,5 @@ smolclaw = "smolclaw.cli:main"
 include = ["smolclaw*", "smolhand*", "agentic_navigator*", "browser_subagents*"]
 
 [tool.setuptools.package-data]
-smolclaw = ["templates/**/*.md"]
+smolclaw = ["templates/**/*.md", "templates/**/*.json"]
 
