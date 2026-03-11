@@ -35,7 +35,7 @@ class AgentState(Enum):
 class AgentEvent(Enum):
     """Events that trigger state transitions."""
     INTENT_RECEIVED = "intent_received"
-    PLAN_GENERATED = "plan_generated"generated
+    PLAN_GENERATED = "plan_generated
     PLAN_FAILED = "plan_failed"
     ACTION_EXECUTED = "action_executed"
     ACTION_FAILED = "action_failed"
