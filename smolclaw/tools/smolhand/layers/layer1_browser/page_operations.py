@@ -6,7 +6,7 @@ from typing import List
 
 from helium import get_driver
 
-from smolclaw.smolhand.layers.layer1_browser.page_state import (
+from smolclaw.tools.smolhand.layers.layer1_browser.page_state import (
     BrowserSnapshotEntity,
     LinkEntity,
     PageStateEntity,

@@ -224,7 +224,7 @@ class BrowserWrapper:
 
         Delegates to BrowserLayerService for consistent implementation.
         """
-        from smolclaw.smolhand.services import BrowserLayerService
+        from smolclaw.tools.smolhand.services import BrowserLayerService
 
         try:
             snapshot_json = BrowserLayerService.page_snapshot_json()
@@ -283,7 +283,7 @@ class BrowserWrapper:
 
         Delegates to BrowserLayerService for consistent implementation.
         """
-        from smolclaw.smolhand.services import BrowserLayerService
+        from smolclaw.tools.smolhand.services import BrowserLayerService
 
         try:
             return BrowserLayerService.extract_links()
@@ -314,7 +314,7 @@ class BrowserWrapper:
 
         Delegates to DOMExplorerLayerService for consistent implementation.
         """
-        from smolclaw.smolhand.services import DOMExplorerLayerService
+        from smolclaw.tools.smolhand.services import DOMExplorerLayerService
 
         try:
             result = DOMExplorerLayerService.explore(
@@ -327,7 +327,7 @@ class BrowserWrapper:
             logger.warning("Layer service explore failed: %s, using fallback", e)
             # Fallback to existing implementation
             try:
-                from smolclaw.smolhand.scoring.heuristic_scorer import HeuristicScorer
+                from smolclaw.tools.smolhand.scoring.heuristic_scorer import HeuristicScorer
             except ImportError:
                 # Fallback: basic keyword matching
                 links = await self.extract_hyperlinks()
@@ -398,7 +398,7 @@ class BrowserWrapper:
     ) -> dict:
         """Fallback implementation for find_path_to_target."""
         try:
-            from smolclaw.smolhand.scoring.heuristic_scorer import HeuristicScorer
+            from smolclaw.tools.smolhand.scoring.heuristic_scorer import HeuristicScorer
         except ImportError:
             ranked = await self.explore_links_astar(target, keyword_weights, top_k=1)
             if ranked:
@@ -548,7 +548,7 @@ class BrowserWrapper:
 
         Delegates to FlorenceVisionLayerService for consistent implementation.
         """
-        from smolclaw.smolhand.services import FlorenceVisionLayerService
+        from smolclaw.tools.smolhand.services import FlorenceVisionLayerService
 
         try:
             # Use Florence-2 vision layer service

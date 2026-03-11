@@ -83,7 +83,7 @@ class ScoreTaskProgress:
             QLearningScoreEntity with computed scores and updated Q-value
         """
         # Get current page state
-        from smolclaw.smolhand.services import BrowserLayerService
+        from smolclaw.tools.smolhand.services import BrowserLayerService
 
         page_state = BrowserLayerService.current_page_state()
         state_key = page_state["url"]

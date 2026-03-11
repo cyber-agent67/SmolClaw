@@ -13,11 +13,11 @@ Usage:
     result = eyes.describe_page("What buttons are visible?")
     
 Or use the tools directly:
-    from smolclaw.smoleyes.tools import analyze_visual_context
+    from smolclaw.tools.smoleyes.tools import analyze_visual_context
     result = analyze_visual_context("Describe this page")
 """
 
-from smolclaw.smoleyes.runtime import (
+from smolclaw.tools.smoleyes.runtime import (
     analyze_with_florence,
     capture_screenshot_base64,
     compare_pages,
@@ -25,7 +25,7 @@ from smolclaw.smoleyes.runtime import (
     extract_text_from_region,
     find_visual_element,
 )
-from smolclaw.smoleyes.tools import (
+from smolclaw.tools.smoleyes.tools import (
     analyze_visual_context,
     detect_page_objects,
     describe_page_visual as describe_page_visual_tool,
@@ -85,7 +85,7 @@ class SmolEyes:
         Returns:
             Dictionary with OCR results
         """
-        from smolclaw.smoleyes.runtime import describe_page_visual
+        from smolclaw.tools.smoleyes.runtime import describe_page_visual
         
         return describe_page_visual(prompt_hint="", include_ocr=True)
     
@@ -95,7 +95,7 @@ class SmolEyes:
         Returns:
             Dictionary with detected objects
         """
-        from smolclaw.smoleyes.runtime import describe_page_visual
+        from smolclaw.tools.smoleyes.runtime import describe_page_visual
         
         return describe_page_visual(prompt_hint="", include_objects=True)
     

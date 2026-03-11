@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from smolclaw.smolhand.layers.layer1_browser.page_operations import ExtractHyperlinks, ReadCurrentPage
-from smolclaw.smolhand.scoring.heuristic_scorer import HeuristicScorer
+from smolclaw.tools.smolhand.layers.layer1_browser.page_operations import ExtractHyperlinks, ReadCurrentPage
+from smolclaw.tools.smolhand.scoring.heuristic_scorer import HeuristicScorer
 from smolclaw.agent.tools.exploration.entities import ExplorationResultEntity, RankedLinkEntity
 
 

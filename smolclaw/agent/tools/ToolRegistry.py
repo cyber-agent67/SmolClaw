@@ -14,7 +14,7 @@ from typing import Optional, Tuple
 from helium import get_driver
 from smolagents import WebSearchTool, tool
 
-from smolclaw.smolhand.services import BrowserLayerService
+from smolclaw.tools.smolhand.services import BrowserLayerService
 from smolclaw.agent.entities.browser.Browser import Browser
 from smolclaw.agent.entities.browser.NavigationStack import NavigationStack
 from smolclaw.agent.entities.browser.Tab import Tab
@@ -181,7 +181,7 @@ def analyze_visual_context(prompt_hint: str = "") -> str:
     Returns:
         JSON string with visual analysis results
     """
-    from smolclaw.smoleyes.tools import analyze_visual_context as eyes_tool
+    from smolclaw.tools.smoleyes.tools import analyze_visual_context as eyes_tool
 
     recovery_note = _recover_live_page("analyze_visual_context")
     payload = eyes_tool(prompt_hint)
@@ -202,7 +202,7 @@ def describe_page_visual(prompt_hint: str = "") -> str:
     Returns:
         JSON string with detailed visual description
     """
-    from smolclaw.smoleyes.tools import describe_page_visual_tool as eyes_tool
+    from smolclaw.tools.smoleyes.tools import describe_page_visual_tool as eyes_tool
 
     recovery_note = _recover_live_page("describe_page_visual")
     payload = eyes_tool(prompt_hint)
@@ -227,7 +227,7 @@ def find_visual_element(description: str, confidence_threshold: float = 0.5) -> 
     Returns:
         JSON string with found elements
     """
-    from smolclaw.smoleyes.tools import find_visual_element_tool as eyes_tool
+    from smolclaw.tools.smoleyes.tools import find_visual_element_tool as eyes_tool
 
     recovery_note = _recover_live_page("find_visual_element")
     payload = eyes_tool(description, confidence_threshold)
@@ -245,7 +245,7 @@ def extract_text_from_screenshot() -> str:
     Returns:
         JSON string with extracted text
     """
-    from smolclaw.smoleyes.tools import extract_text_from_screenshot as eyes_tool
+    from smolclaw.tools.smoleyes.tools import extract_text_from_screenshot as eyes_tool
 
     recovery_note = _recover_live_page("extract_text_from_screenshot")
     payload = eyes_tool()
@@ -263,7 +263,7 @@ def detect_page_objects() -> str:
     Returns:
         JSON string with detected objects
     """
-    from smolclaw.smoleyes.tools import detect_page_objects as eyes_tool
+    from smolclaw.tools.smoleyes.tools import detect_page_objects as eyes_tool
 
     recovery_note = _recover_live_page("detect_page_objects")
     payload = eyes_tool()

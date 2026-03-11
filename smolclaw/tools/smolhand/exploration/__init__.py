@@ -4,6 +4,6 @@ Deprecated: HeuristicExplorer has been moved to browser_subagents.scoring.
 This module re-exports for backward compatibility.
 """
 
-from smolclaw.smolhand.scoring.heuristic_scorer import HeuristicScorer as HeuristicExplorer
+from smolclaw.tools.smolhand.scoring.heuristic_scorer import HeuristicScorer as HeuristicExplorer
 
 __all__ = ["HeuristicExplorer"]

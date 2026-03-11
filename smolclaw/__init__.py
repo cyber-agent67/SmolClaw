@@ -7,8 +7,7 @@ __all__ = [
     "SmolhandRunner",
     "ToolDefinition",
     "default_tools",
-    "smolhand",  # Browser automation + small LLM runtime
-    "smoleyes",  # Vision-based browser analysis
+    "tools",  # Tool packages (smolhand, smoleyes)
 ]
 
 
@@ -31,14 +30,9 @@ def __getattr__(name):
             "default_tools": default_tools,
         }[name]
 
-    if name == "smolhand":
-        import smolclaw.smolhand
+    if name == "tools":
+        import smolclaw.tools
 
-        return smolclaw.smolhand
-
-    if name == "smoleyes":
-        import smolclaw.smoleyes
-
-        return smolclaw.smoleyes
+        return smolclaw.tools
 
     raise AttributeError(name)

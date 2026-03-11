@@ -26,15 +26,9 @@ The codebase follows a clean separation:
   - Entities: Browser, Tab, NavigationStack
   - Interactions: Business logic
   
-- **smolclaw/smolhand/**: Browser automation + Small LLM (THE HANDS)
-  - Layer 1: Raw browser access
-  - HeuristicScorer: A* exploration
-  - Runtime: OpenAICompatClient, SmolhandRunner
-
-- **smolclaw/smoleyes/**: Vision analysis (THE EYES)
-  - Florence-2 integration
-  - Screenshot analysis
-  - OCR and object detection
+- **smolclaw/tools/**: Tool integrations
+  - **smolhand**: Browser automation + Small LLM (THE HANDS)
+  - **smoleyes**: Vision analysis with Florence-2 (THE EYES)
   
 - **smolclaw/**: Runtime wrapper (THE BODY)
   - CLI: tui, gateway, setup

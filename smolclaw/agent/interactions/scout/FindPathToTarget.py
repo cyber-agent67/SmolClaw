@@ -5,8 +5,8 @@ from typing import Optional
 
 from helium import get_driver
 
-from smolclaw.smolhand.scoring.heuristic_scorer import HeuristicScorer
-from smolclaw.smolhand.services import BrowserLayerService
+from smolclaw.tools.smolhand.scoring.heuristic_scorer import HeuristicScorer
+from smolclaw.tools.smolhand.services import BrowserLayerService
 from smolclaw.agent.entities.browser.ScoutResult import ScoutResult
 
 

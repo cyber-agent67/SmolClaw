@@ -11,17 +11,17 @@ Structure:
 - runtime.py: Small LLM tool-calling runtime
 """
 
-from smolclaw.smolhand.layers.layer1_browser.page_operations import (
+from smolclaw.tools.smolhand.layers.layer1_browser.page_operations import (
     BuildBrowserSnapshot,
     ExtractHyperlinks,
     ReadCurrentPage,
 )
-from smolclaw.smolhand.layers.layer1_browser.page_state import (
+from smolclaw.tools.smolhand.layers.layer1_browser.page_state import (
     BrowserSnapshotEntity,
     LinkEntity,
     PageStateEntity,
 )
-from smolclaw.smolhand.runtime import (
+from smolclaw.tools.smolhand.runtime import (
     OpenAICompatClient,
     SmolhandRunner,
     ToolDefinition,
@@ -29,8 +29,8 @@ from smolclaw.smolhand.runtime import (
     default_tools,
     ensure_connected_page,
 )
-from smolclaw.smolhand.scoring import HeuristicScorer
-from smolclaw.smolhand.services import BrowserLayerService
+from smolclaw.tools.smolhand.scoring import HeuristicScorer
+from smolclaw.tools.smolhand.services import BrowserLayerService
 
 __all__ = [
     # Browser Layer 1

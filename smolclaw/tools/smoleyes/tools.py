@@ -33,7 +33,7 @@ def describe_page_visual(prompt_hint: str = "") -> str:
         describe_page_visual("Describe the main content area")
         describe_page_visual("What form fields are visible?")
     """
-    from smolclaw.smoleyes.runtime import describe_page_visual as vision_describe
+    from smolclaw.tools.smoleyes.runtime import describe_page_visual as vision_describe
     
     result = vision_describe(prompt_hint=prompt_hint, include_ocr=False, include_objects=False)
     return json.dumps(result, indent=2)
@@ -63,7 +63,7 @@ def find_visual_element(description: str, confidence_threshold: float = 0.5) -> 
         find_visual_element("red delete button")
         find_visual_element("search icon", confidence_threshold=0.7)
     """
-    from smolclaw.smoleyes.runtime import find_visual_element as vision_find
+    from smolclaw.tools.smoleyes.runtime import find_visual_element as vision_find
     
     result = vision_find(description, confidence_threshold)
     return json.dumps(result, indent=2)
@@ -87,7 +87,7 @@ def extract_text_from_screenshot() -> str:
     Example:
         extract_text_from_screenshot()
     """
-    from smolclaw.smoleyes.runtime import describe_page_visual as vision_describe
+    from smolclaw.tools.smoleyes.runtime import describe_page_visual as vision_describe
     
     result = vision_describe(prompt_hint="", include_ocr=True, include_objects=False)
     
@@ -118,7 +118,7 @@ def detect_page_objects() -> str:
     Example:
         detect_page_objects()
     """
-    from smolclaw.smoleyes.runtime import describe_page_visual as vision_describe
+    from smolclaw.tools.smoleyes.runtime import describe_page_visual as vision_describe
     
     result = vision_describe(prompt_hint="", include_ocr=False, include_objects=True)
     
@@ -148,7 +148,7 @@ def analyze_visual_context(prompt_hint: str = "") -> str:
         analyze_visual_context("What can I do on this page?")
         analyze_visual_context("Describe the layout")
     """
-    from smolclaw.smoleyes.runtime import describe_page_visual as vision_describe
+    from smolclaw.tools.smoleyes.runtime import describe_page_visual as vision_describe
     
     result = vision_describe(prompt_hint=prompt_hint, include_ocr=False, include_objects=False)
     

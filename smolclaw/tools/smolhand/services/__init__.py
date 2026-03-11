@@ -9,7 +9,7 @@ Note: All intelligence is now in AI Agent tools:
 - Q-Learning: agentic_navigator/tools/q_learning/
 """
 
-from smolclaw.smolhand.services.layer1_browser import BrowserLayerService
+from smolclaw.tools.smolhand.services.layer1_browser import BrowserLayerService
 
 __all__ = [
     "BrowserLayerService",

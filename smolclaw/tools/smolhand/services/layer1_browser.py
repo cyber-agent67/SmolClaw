@@ -6,12 +6,12 @@ import json
 import logging
 from typing import Any, Dict, List
 
-from smolclaw.smolhand.layers.layer1_browser.page_operations import (
+from smolclaw.tools.smolhand.layers.layer1_browser.page_operations import (
     BuildBrowserSnapshot,
     ExtractHyperlinks,
     ReadCurrentPage,
 )
-from smolclaw.smolhand.metrics import measure_latency, record_operation
+from smolclaw.tools.smolhand.metrics import measure_latency, record_operation
 
 logger = logging.getLogger(__name__)
 
