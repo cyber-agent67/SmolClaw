@@ -49,7 +49,7 @@ class PlanGeneratedEvent(Event):
     confidence: float = 0.0
     
     def __post_init__(self):
-        self.event_type = "plan_generated
+        self.event_type = "plan_generated"
         self.timestamp = self.timestamp or time.time()
         self.event_id = self.event_id or str(uuid.uuid4())
         self.metadata = {
@@ -234,9 +234,8 @@ class EventStore:
         filtered = [e for e in self.events if e.event_type == event_type]
         return EventStream(events=filtered)
     
-    def fold[T](
+    def fold(
         self,
-        initial: T,
         reducer: Callable[[T, Event], T]
     ) -> T:
         """Fold events into single value (state reconstruction).
@@ -315,7 +314,7 @@ class EventStore:
                 event_id=event_dict.get("event_id"),
                 timestamp=event_dict.get("timestamp"),
             )
-        elif event_type == "plan_generated
+        elif event_type == "plan_generated":
             return PlanGeneratedEvent(
                 plan=event_dict["metadata"].get("plan", {}),
                 strategy=event_dict["metadata"].get("strategy", ""),
