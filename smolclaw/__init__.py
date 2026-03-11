@@ -1,4 +1,4 @@
-"""smolclaw package."""
+"""smolclaw package - Distributed Cognitive System."""
 
 __all__ = [
     "cleanup_resources",
@@ -8,6 +8,8 @@ __all__ = [
     "ToolDefinition",
     "default_tools",
     "tools",  # Tool packages (smolhand, smoleyes)
+    "cognitive",  # Cognitive system core
+    "CognitiveLoop",  # Cognitive runloop
 ]
 
 
@@ -34,5 +36,15 @@ def __getattr__(name):
         import smolclaw.tools
 
         return smolclaw.tools
+
+    if name == "cognitive":
+        import smolclaw.cognitive
+
+        return smolclaw.cognitive
+
+    if name == "CognitiveLoop":
+        from smolclaw.cognitive_loop import CognitiveLoop
+
+        return CognitiveLoop
 
     raise AttributeError(name)
