@@ -234,10 +234,7 @@ class EventStore:
         filtered = [e for e in self.events if e.event_type == event_type]
         return EventStream(events=filtered)
     
-    def fold(
-        self,
-        reducer: Callable[[T, Event], T]
-    ) -> T:
+    def fold(self, initial, reducer):
         """Fold events into single value (state reconstruction).
         
         Args:

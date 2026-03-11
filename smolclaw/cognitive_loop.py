@@ -165,7 +165,7 @@ class CognitiveLoop:
         self.event_store.append(StateTransitionEvent(
             from_state="await_intent",
             to_state="planning",
-            trigger_event="plan_generated
+            trigger_event="plan_generated"
         ))
     
     def _record_tool_execution(

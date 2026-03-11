@@ -1,0 +1,2 @@
+[console_scripts]
+smolclaw = smolclaw.cli:main
