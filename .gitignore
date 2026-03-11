@@ -6,3 +6,14 @@ data/
 
 *.log
 .env
+
+# Package build artifacts
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.pyc
