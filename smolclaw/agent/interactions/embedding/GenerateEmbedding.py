@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """GenerateEmbedding interaction — local embeddings (zero API cost).
 
-Generates embedding vectors for text using a local model.
+Generates embedding vectors for text using sentence-transformers.
 No API calls, no token cost, completely free.
 
 Model: all-MiniLM-L6-v2 (384 dimensions, 80MB)
 Speed: ~50ms per embedding
 Cost: $0.00 (local computation)
+
+Note: sentence-transformers is installed automatically with:
+    pip install -e .
 """
 
 from typing import List, Optional
@@ -20,8 +23,10 @@ class _EmbeddingModelSingleton:
     Loaded once, reused for all embeddings.
     Zero API cost — runs locally on CPU.
     
-    Fallback: If sentence-transformers not installed,
-    uses TF-IDF-like hash-based embeddings (still free).
+    Model: sentence-transformers/all-MiniLM-L6-v2
+    - 384 dimensions
+    - ~80MB on disk
+    - Fast CPU inference
     """
     
     _instance = None
@@ -39,7 +44,7 @@ class _EmbeddingModelSingleton:
     
     def load(self, model_name: str = "all-MiniLM-L6-v2") -> None:
         """
-        Load embedding model.
+        Load sentence-transformers embedding model.
         
         Args:
             model_name: Model to load (default: all-MiniLM-L6-v2)
@@ -47,18 +52,11 @@ class _EmbeddingModelSingleton:
         if self._model is not None:
             return
         
-        try:
-            from sentence_transformers import SentenceTransformer
-            
-            print(f"Loading embedding model: {model_name}...")
-            self._model = SentenceTransformer(model_name)
-            print("✓ Embedding model loaded (local, zero API cost)")
-            
-        except ImportError:
-            print("⚠ sentence-transformers not installed.")
-            print("  Using TF-IDF fallback (still free).")
-            print("  Install for better quality: pip install sentence-transformers")
-            self._model = "tfidf_fallback"
+        from sentence_transformers import SentenceTransformer
+        
+        print(f"Loading embedding model: {model_name}...")
+        self._model = SentenceTransformer(model_name)
+        print("✓ Embedding model loaded (local, zero API cost)")
     
     def encode(self, text: str) -> List[float]:
         """
@@ -72,9 +70,6 @@ class _EmbeddingModelSingleton:
         """
         if self._model is None:
             self.load()
-        
-        if self._model == "tfidf_fallback":
-            return _tfidf_fallback(text)
         
         # Generate embedding with sentence-transformers
         embedding = self._model.encode(
@@ -101,9 +96,6 @@ class _EmbeddingModelSingleton:
         if self._model is None:
             self.load()
         
-        if self._model == "tfidf_fallback":
-            return [_tfidf_fallback(text) for text in texts]
-        
         # Batch encode
         embeddings = self._model.encode(
             texts,
@@ -115,50 +107,12 @@ class _EmbeddingModelSingleton:
         return [emb.tolist() for emb in embeddings]
 
 
-def _tfidf_fallback(text: str, dim: int = 384) -> List[float]:
-    """
-    Ultra-cheap embedding fallback: hash-based pseudo-embeddings.
-    
-    Not as good as sentence-transformers, but:
-    - Zero dependencies
-    - Zero API cost
-    - Deterministic (same text → same embedding)
-    - Reasonable similarity behavior
-    
-    Args:
-        text: Text to embed
-        dim: Embedding dimension (default 384)
-    
-    Returns:
-        Pseudo-embedding vector
-    """
-    import hashlib
-    
-    embedding = [0.0] * dim
-    words = text.lower().split()
-    
-    for word in words:
-        # Hash each word to get a consistent index
-        h = int(hashlib.md5(word.encode()).hexdigest(), 16)
-        idx = h % dim
-        
-        # Increment that dimension
-        embedding[idx] += 1.0
-    
-    # Normalize to unit vector (for cosine similarity)
-    magnitude = sum(x * x for x in embedding) ** 0.5
-    if magnitude > 0:
-        embedding = [x / magnitude for x in embedding]
-    
-    return embedding
-
-
 # Global singleton instance
 _singleton = _EmbeddingModelSingleton()
 
 
 class GenerateEmbedding:
-    """Generate embedding for text — local model, zero API cost.
+    """Generate embedding for text — sentence-transformers, zero API cost.
     
     Usage:
         # Single text
@@ -173,7 +127,13 @@ class GenerateEmbedding:
     Performance:
         - Single: ~50ms
         - Batch (10): ~200ms
-        - Cost: $0.00
+        - Cost: $0.00 (local CPU)
+    
+    Model Info:
+        - Name: sentence-transformers/all-MiniLM-L6-v2
+        - Dimensions: 384
+        - Size: ~80MB
+        - Installed automatically with pip install -e .
     """
     
     @staticmethod
@@ -184,7 +144,7 @@ class GenerateEmbedding:
         """
         Generate embedding vector for text.
         
-        Uses local model — zero API token cost.
+        Uses local sentence-transformers model — zero API token cost.
         
         Args:
             text: Text to embed
