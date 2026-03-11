@@ -9,7 +9,7 @@ import json
 from aiohttp import web
 
 from smolclaw.config import load_config
-from smolhand import OpenAICompatClient, SmolhandRunner, default_tools
+from smolclaw.tools.smolhand import OpenAICompatClient, SmolhandRunner, default_tools
 
 # ---------------------------------------------------------------------------
 # Chronicle SSPM REST API (FastAPI)
@@ -18,7 +18,7 @@ try:
     from fastapi import FastAPI
     import uvicorn
 
-    from api import agents_router, scans_router, settings_router, saas_router
+    from smolclaw.gateway.api import agents_router, scans_router, settings_router, saas_router
 
     _HAS_FASTAPI = True
 except ImportError:

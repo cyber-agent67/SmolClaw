@@ -30,10 +30,14 @@ The codebase follows a clean separation:
   - **smolhand**: Browser automation + Small LLM (THE HANDS)
   - **smoleyes**: Vision analysis with Florence-2 (THE EYES)
   
+- **smolclaw/gateway/**: Gateway and API
+  - WebSocket server for agent access
+  - REST API for Chronicle SSPM
+  - TUI client
+  
 - **smolclaw/**: Runtime wrapper (THE BODY)
   - CLI: tui, gateway, setup
   - Loop: Run orchestrator
-  - Gateway: Websocket server
 
 Backward compatibility is preserved:
 

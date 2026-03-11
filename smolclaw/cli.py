@@ -24,7 +24,7 @@ from smolclaw.config import (
     smolclaw_home_dir,
     workplace_dir,
 )
-from smolclaw.gateway_tui_client import run_tui_sync
+from smolclaw.gateway.client import run_tui_sync
 
 
 @click.group(
