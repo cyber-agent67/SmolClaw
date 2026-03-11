@@ -38,8 +38,8 @@ def _load_tool_instruction_block() -> str:
 
 def _register_core_tools():
     """Import and return the browser and score_progress smolagents tools."""
-    from tools.browser_tool import browser
-    from tools.q_learning_tool import score_progress
+    from smolclaw.tools.browser_tool import browser
+    from smolclaw.tools.q_learning_tool import score_progress
     return [browser, score_progress]
 
 

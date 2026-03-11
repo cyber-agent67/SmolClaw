@@ -1,12 +1,6 @@
-"""smolclaw tools package.
+"""SmolAgent tools — browser and Q-learning."""
 
-This package contains tool integrations:
-- smolhand: Browser automation + Small LLM runtime
-- smoleyes: Vision-based browser analysis (Florence-2)
-"""
+from .browser_tool import browser
+from .q_learning_tool import score_progress
 
-from smolclaw.agent.tools.SmolhandTools import SmolhandTools
-from smolclaw.agent.tools.ToolRegistry import ToolRegistry
-from smolclaw.tools import smolhand, smoleyes
-
-__all__ = ["SmolhandTools", "ToolRegistry", "smolhand", "smoleyes"]
+__all__ = ["browser", "score_progress"]
