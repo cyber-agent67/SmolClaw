@@ -49,7 +49,7 @@ class PlanGeneratedEvent(Event):
     confidence: float = 0.0
     
     def __post_init__(self):
-        self.event_type = "plan_generated
+        self.event_type = "plan_generated generated
         self.timestamp = self.timestamp or time.time()
         self.event_id = self.event_id or str(uuid.uuid4())
         self.metadata = {

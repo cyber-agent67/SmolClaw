@@ -223,6 +223,16 @@ def gateway() -> None:
     pass
 
 
+@main.command(help="Start TUI client (connects to gateway).")
+@click.option("--url", default="ws://127.0.0.1:8765/ws", help="Gateway WebSocket URL")
+@click.option("--session", default="tui", help="Session ID")
+def tui(url: str, session: str) -> None:
+    """Start TUI client that connects to gateway."""
+    from smolclaw.gateway.tui_client import run_tui_sync
+    
+    run_tui_sync(url, session)
+
+
 def _is_running(pid: int) -> bool:
     try:
         os.kill(pid, 0)
