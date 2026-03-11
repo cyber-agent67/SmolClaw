@@ -274,7 +274,13 @@ def detect_page_objects() -> str:
 
 @tool
 def explore_dom_with_astar(target: str, keyword_values: str = None, top_k: int = 5) -> str:
-    """Use A* heuristics to rank hyperlinks on the current page by relevance."""
+    """Use A* heuristics to rank hyperlinks on the current page by relevance.
+    
+    Args:
+        target: Target description for link ranking
+        keyword_values: Optional JSON string with keyword weights
+        top_k: Number of top links to return
+    """
     from smolclaw.agent.tools.exploration import explore_dom_with_astar as explore_tool
 
     recovery_note = _recover_live_page("explore_dom_with_astar")
@@ -286,7 +292,13 @@ def explore_dom_with_astar(target: str, keyword_values: str = None, top_k: int =
 
 @tool
 def score_task_progress_q_learning(task_prompt: str, llm_score: float = None, action_name: str = "observe") -> str:
-    """AI Agent tool: computes task/page vector reward and updates Q-value for navigation learning."""
+    """AI Agent tool: computes task/page vector reward and updates Q-value for navigation learning.
+    
+    Args:
+        task_prompt: Natural language task description
+        llm_score: Optional LLM-provided score (0.0-1.0)
+        action_name: Name of action that led to current state
+    """
     from smolclaw.agent.tools.q_learning import score_task_progress_q_learning as q_tool
 
     recovery_note = _recover_live_page("score_task_progress_q_learning")
@@ -298,7 +310,11 @@ def score_task_progress_q_learning(task_prompt: str, llm_score: float = None, ac
 
 @tool
 def set_browser_url(url: str) -> str:
-    """Sets the browser to navigate to a specific URL."""
+    """Navigate the browser to a specific URL.
+    
+    Args:
+        url: URL to navigate to
+    """
     from smolclaw.agent.interactions.navigation.GoToURL import GoToURL
 
     global _current_tab_id
@@ -312,7 +328,11 @@ def set_browser_url(url: str) -> str:
 
 @tool
 def create_new_tab(url: str = None) -> str:
-    """Creates a new browser tab and optionally navigates to a URL."""
+    """Create a new browser tab and optionally navigate to a URL.
+    
+    Args:
+        url: Optional URL to navigate to after creating tab
+    """
     from smolclaw.agent.interactions.tab.Create import CreateTab
 
     global _tab_counter, _current_tab_id
@@ -326,7 +346,11 @@ def create_new_tab(url: str = None) -> str:
 
 @tool
 def switch_to_tab(tab_id: str) -> str:
-    """Switches to the specified browser tab."""
+    """Switch to the specified browser tab.
+    
+    Args:
+        tab_id: ID of tab to switch to
+    """
     from smolclaw.agent.interactions.tab.Switch import SwitchTab
 
     global _current_tab_id
@@ -342,7 +366,11 @@ def switch_to_tab(tab_id: str) -> str:
 
 @tool
 def close_tab(tab_id: str) -> str:
-    """Closes the specified browser tab."""
+    """Close the specified browser tab.
+    
+    Args:
+        tab_id: ID of tab to close
+    """
     from smolclaw.agent.interactions.tab.Close import CloseTab
 
     global _current_tab_id
@@ -381,7 +409,12 @@ def list_open_tabs() -> str:
 
 @tool
 def find_path_to_target(target: str, keyword_values: str = None) -> str:
-    """Uses a depth-1 scout interaction to find best URL for target."""
+    """Use depth-1 scout interaction to find best URL for target.
+    
+    Args:
+        target: Target description to search for
+        keyword_values: Optional JSON string with keyword weights
+    """
     from smolclaw.agent.interactions.scout.FindPathToTarget import FindPathToTarget
 
     result = FindPathToTarget.execute(target, keyword_values)
@@ -408,7 +441,7 @@ def find_path_to_target(target: str, keyword_values: str = None) -> str:
 
 @tool
 def get_address() -> str:
-    """Gets address information from browser and host."""
+    """Get address information from browser and host."""
     from smolclaw.agent.interactions.location.GetAddress import GetAddress
 
     recovery_note = _recover_live_page("get_address")
@@ -460,7 +493,11 @@ def quit_browser() -> str:
 
 @tool
 def think(query: str) -> str:
-    """Calls the cognitive strategy interaction."""
+    """Call the cognitive strategy interaction.
+    
+    Args:
+        query: Query or topic to think about
+    """
     from smolclaw.agent.interactions.thinking.Think import Think
 
     return Think.execute(query)
@@ -468,7 +505,12 @@ def think(query: str) -> str:
 
 @tool
 def search_item_ctrl_f(text: str, nth_result: int = 1) -> str:
-    """Searches for text on page and focuses the nth match."""
+    """Search for text on page and focus the nth match.
+    
+    Args:
+        text: Text to search for
+        nth_result: Which match to focus (1-based)
+    """
     from smolclaw.agent.interactions.navigation.SearchOnPage import SearchOnPage
 
     recovery_note = _recover_live_page("search_item_ctrl_f")
@@ -480,7 +522,7 @@ def search_item_ctrl_f(text: str, nth_result: int = 1) -> str:
 
 @tool
 def go_back() -> str:
-    """Goes back to previous page using shared navigation stack."""
+    """Go back to previous page using shared navigation stack."""
     from smolclaw.agent.interactions.navigation.GoBack import GoBack
 
     return GoBack.execute(_navigation_stack)
@@ -488,7 +530,7 @@ def go_back() -> str:
 
 @tool
 def close_popups() -> str:
-    """Closes visible modal/popups via ESC."""
+    """Close visible modal/popups via ESC key."""
     from smolclaw.agent.interactions.navigation.ClosePopups import ClosePopups
 
     return ClosePopups.execute()

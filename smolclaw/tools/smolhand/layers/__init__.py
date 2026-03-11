@@ -1,13 +1,14 @@
-"""Layered browser sub-agent modules."""
+"""Layered browser sub-agent modules.
+
+Only Layer 1 (raw browser access) is in smolhand.
+Other "layers" are now agent tools:
+- Vision: smolclaw.agent.tools.vision
+- Exploration: smolclaw.agent.tools.exploration
+- Q-Learning: smolclaw.agent.tools.q_learning
+"""
 
 from smolclaw.tools.smolhand.services.layer1_browser import BrowserLayerService
-from smolclaw.tools.smolhand.services.layer2_florence_vision import FlorenceVisionLayerService
-from smolclaw.tools.smolhand.services.layer3_dom_explorer import DOMExplorerLayerService
-from smolclaw.tools.smolhand.services.layer4_q_learning import QLearningLayerService
 
 __all__ = [
     "BrowserLayerService",
-    "FlorenceVisionLayerService",
-    "DOMExplorerLayerService",
-    "QLearningLayerService",
 ]
