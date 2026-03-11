@@ -5,23 +5,35 @@ This is the main interaction for token-optimized memory injection.
 Call this before every LLM request to inject surgically precise
 context within budget.
 
-Flow:
+Flow (Phase 1 - Recent):
 1. Budget → Calculate available tokens
-2. Select → Take recent + relevant experiences
+2. Select → Take recent experiences
 3. Compress → Compress each experience 5x
 4. Format → Format for prompt injection
 5. Return → String ready for LLM prompt
 
+Flow (Phase 2 - Semantic):
+1. Budget → Calculate available tokens
+2. Embed → Embed query and memories (local, free)
+3. Search → Find semantically relevant memories
+4. Compress → Already compressed
+5. Format → Format for prompt injection
+6. Return → String ready for LLM prompt
+
 Result: 100K tokens → 2K tokens (98% reduction)
 """
 
-from typing import List
+from typing import List, Optional
 from smolclaw.agent.entities.memory.Experience import Experience
 from smolclaw.agent.entities.TokenBudget import TokenBudget
 from smolclaw.agent.entities.CompressedMemory import CompressedMemory
+from smolclaw.agent.entities.MemoryQuery import MemoryQuery
 from smolclaw.agent.config.MemoryConfig import MemoryConfig
 from smolclaw.agent.interactions.memory_optimization.CompressExperience import (
     CompressExperience
+)
+from smolclaw.agent.interactions.memory_optimization.SemanticSearch import (
+    SemanticSearch
 )
 
 
@@ -134,6 +146,75 @@ class InjectMemory:
         injection = InjectMemory._format_injection(
             selected, tokens_used
         )
+        
+        return injection
+
+    @staticmethod
+    def execute_with_semantic_search(
+        experiences: List[Experience],
+        compressed_memories: List[CompressedMemory],
+        current_goal: str = "",
+        config: MemoryConfig = None,
+        max_tokens: int = 2000
+    ) -> str:
+        """
+        Token-optimized memory injection WITH semantic search.
+        
+        Phase 2: Uses semantic similarity to find RELEVANT memories,
+        not just RECENT ones.
+        
+        Args:
+            experiences: List of all past experiences
+            compressed_memories: List of compressed memories (with embeddings)
+            current_goal: What the agent is trying to do now
+            config: Optional memory configuration
+            max_tokens: Maximum tokens to use (default 2000)
+        
+        Returns:
+            Formatted string ready for prompt injection
+        """
+        if config is None:
+            config = MemoryConfig()
+        
+        # Handle empty
+        if not experiences or not compressed_memories:
+            return ""
+        
+        # =====================================================================
+        # 1. BUDGET
+        # =====================================================================
+        
+        budget = TokenBudget()
+        budget.calculate_available()
+        actual_budget = min(
+            budget.available_for_memory,
+            config.max_memory_tokens,
+            max_tokens
+        )
+        
+        # =====================================================================
+        # 2. SEMANTIC SEARCH (Phase 2)
+        # =====================================================================
+        
+        # Build query
+        query = MemoryQuery()
+        query.query_text = current_goal
+        query.max_results = 5
+        query.min_relevance = config.min_similarity_threshold
+        query.token_budget = actual_budget
+        
+        # Execute search
+        search_result = SemanticSearch.execute(
+            query=query,
+            compressed_memories=compressed_memories,
+            config=config
+        )
+        
+        # =====================================================================
+        # 3. FORMAT
+        # =====================================================================
+        
+        injection = search_result.format_for_injection()
         
         return injection
     
