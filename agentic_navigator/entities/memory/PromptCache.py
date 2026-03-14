@@ -1,9 +1,5 @@
-"""PromptCache entity - pure state container."""
+"""Backward-compat shim — canonical location is core/memory/store.py."""
 
-from typing import Dict
+from core.memory.store import PromptCache
 
-
-class PromptCache:
-    def __init__(self):
-        self.cache_file: str = "keyword_cache.json"
-        self.cache: Dict[str, str] = {}
+__all__ = ["PromptCache"]
