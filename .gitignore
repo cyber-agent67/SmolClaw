@@ -1,5 +1,6 @@
 # Virtual environments
 .venv/
+.venv*/
 venv/
 env/
 
@@ -8,6 +9,7 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*.pyc
 *.egg-info/
 dist/
 build/

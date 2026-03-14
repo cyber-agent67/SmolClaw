@@ -1,0 +1,130 @@
+{
+  "tool_name": "browser",
+  "description": "Unified browser automation tool for web navigation and interaction",
+  "actions": {
+    "goto": {
+      "description": "Navigate to a URL",
+      "parameters": {
+        "url": "string (required)"
+      },
+      "when_to_use": "When you need to visit a specific web page"
+    },
+    "go_back": {
+      "description": "Navigate back in browser history",
+      "parameters": {},
+      "when_to_use": "When you need to return to the previous page"
+    },
+    "click": {
+      "description": "Click an element on the page",
+      "parameters": {
+        "selector": "string (CSS selector)",
+        "fallback_instruction": "string (optional, natural language fallback if selector fails)"
+      },
+      "when_to_use": "When you need to interact with a button, link, or clickable element"
+    },
+    "type_text": {
+      "description": "Type text into an input field",
+      "parameters": {
+        "selector": "string (CSS selector for the input)",
+        "text": "string (text to type)"
+      },
+      "when_to_use": "When you need to fill in a form field or search box"
+    },
+    "secure_fill": {
+      "description": "Securely fill a credential field without exposing value to LLM context",
+      "parameters": {
+        "field_description": "string (description of the field, e.g. 'password input')",
+        "value": "string (the credential value)"
+      },
+      "when_to_use": "When entering passwords, tokens, or sensitive credentials"
+    },
+    "screenshot": {
+      "description": "Capture a screenshot of the current page",
+      "parameters": {
+        "full_page": "boolean (default: false, set true for full page capture)"
+      },
+      "when_to_use": "When you need to visually inspect the page or save evidence"
+    },
+    "observe": {
+      "description": "Get DOM tree and page state as structured data including URL, title, headings, links, buttons, inputs, and interactive elements",
+      "parameters": {},
+      "when_to_use": "When you need to understand what is on the page before acting. Always observe before clicking or typing."
+    },
+    "get_page_source": {
+      "description": "Get the raw HTML source of the current page",
+      "parameters": {},
+      "when_to_use": "When you need the full HTML for detailed parsing or analysis"
+    },
+    "extract_links": {
+      "description": "Get all hyperlinks on the current page with their href, text, and title",
+      "parameters": {},
+      "when_to_use": "When you need a raw list of all links available on the page"
+    },
+    "explore_astar": {
+      "description": "Rank page hyperlinks using A* heuristic to find the best path to a target. Scores links based on text relevance, keyword matches, and URL depth.",
+      "parameters": {
+        "target": "string (required, what you are looking for)",
+        "keyword_weights": "object (optional, keyword to weight map, e.g. {\"security\": 10, \"admin\": 8})",
+        "top_k": "integer (default: 5, number of top-ranked links to return)"
+      },
+      "when_to_use": "When you need to discover which link on the page is most likely to lead to your goal. Use before navigating to pick the best link."
+    },
+    "find_path": {
+      "description": "Depth-1 lookahead scout. Opens each top-ranked link in a new tab, scores the content of each destination page, and returns the best URL with reasoning.",
+      "parameters": {
+        "target": "string (required, what you are looking for)",
+        "keyword_weights": "object (optional, keyword to weight map)"
+      },
+      "when_to_use": "When explore_astar is not confident enough and you need to actually visit candidate pages to score them before committing to a path"
+    },
+    "wait_for_selector": {
+      "description": "Wait for an element to appear on the page",
+      "parameters": {
+        "selector": "string (CSS selector to wait for)",
+        "timeout_ms": "integer (default: 5000, max wait time in milliseconds)"
+      },
+      "when_to_use": "When a page is loading and you need to wait for specific content to appear before proceeding"
+    },
+    "tabs_list": {
+      "description": "List all open browser tabs with their IDs, URLs, and active status",
+      "parameters": {},
+      "when_to_use": "When you need to know what tabs are open"
+    },
+    "tab_create": {
+      "description": "Open a new browser tab, optionally navigating to a URL",
+      "parameters": {
+        "url": "string (optional, URL to open in the new tab)"
+      },
+      "when_to_use": "When you need to open a page without leaving the current one"
+    },
+    "tab_switch": {
+      "description": "Switch to a specific browser tab by its ID",
+      "parameters": {
+        "tab_id": "string (required, the tab ID from tabs_list)"
+      },
+      "when_to_use": "When you need to go back to a previously opened tab"
+    },
+    "tab_close": {
+      "description": "Close a browser tab by its ID",
+      "parameters": {
+        "tab_id": "string (required, the tab ID to close)"
+      },
+      "when_to_use": "When a tab is no longer needed and should be cleaned up"
+    },
+    "analyze_vision": {
+      "description": "Use vision AI to analyze what is visually displayed on the page, including layout, images, and elements that may not be in the DOM",
+      "parameters": {
+        "prompt": "string (optional, specific aspect to focus the analysis on)"
+      },
+      "when_to_use": "When DOM observation is not enough and you need visual understanding of the page"
+    },
+    "extract_settings": {
+      "description": "Extract structured settings and configuration data from the current page using DOM-first extraction with vision AI fallback",
+      "parameters": {
+        "saas_name": "string (required, name of the SaaS application)",
+        "schema": "object (optional, expected settings schema with labels and keys)"
+      },
+      "when_to_use": "When you need to extract security settings or configuration data from a SaaS admin page"
+    }
+  }
+}

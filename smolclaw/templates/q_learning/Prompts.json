@@ -1,0 +1,29 @@
+{
+  "tool_name": "score_progress",
+  "description": "Q-Learning task progress scorer. Measures how close the current page is to completing your task by computing cosine similarity between the task description and page content, then updating the Q-value for the current state.",
+  "parameters": {
+    "task_prompt": "string (required) — description of the task you are trying to complete",
+    "action_name": "string (default: 'observe') — the action that led to this state",
+    "llm_score": "float (optional) — your own confidence score between 0.0 and 1.0 for how relevant this page is"
+  },
+  "returns": {
+    "state": "current URL serving as the state identifier",
+    "reward": "combined score calculated as 0.7 * vector_similarity + 0.3 * llm_score",
+    "q_value": "updated Q-value for this state using Q(s,a) = Q(s,a) + alpha * (reward + gamma * max_future_Q - Q(s,a))",
+    "visits": "how many times this state (URL) has been visited",
+    "vector_reward": "raw cosine similarity between task tokens and page content tokens",
+    "title": "page title at time of scoring"
+  },
+  "when_to_use": "After navigating to a new page, use this to check if you are getting closer to your goal. High reward (above 0.5) means you are on the right track. Low reward (below 0.2) means you should try a different path.",
+  "strategy_tips": [
+    "Score after each navigation to track progress",
+    "If reward drops after a click, go back and try another path",
+    "Use explore_astar from the browser tool first, then score_progress to validate the choice",
+    "Compare q_values across different pages to find the most promising path",
+    "Provide your own llm_score when you have domain knowledge about the relevance of a page"
+  ],
+  "learning_parameters": {
+    "alpha": "0.5 — learning rate, controls how much new information overrides old Q-values",
+    "gamma": "0.8 — discount factor, controls importance of future rewards vs immediate rewards"
+  }
+}

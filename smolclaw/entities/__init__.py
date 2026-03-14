@@ -1,33 +1,33 @@
 """smolclaw-local exports for agent entities."""
 
-from agentic_navigator.entities.actions.DeclarativeAction import DeclarativeAction
-from agentic_navigator.entities.actions.ImperativeCommand import ImperativeCommand
-from agentic_navigator.entities.browser.Address import Address
-from agentic_navigator.entities.browser.Browser import Browser
-from agentic_navigator.entities.browser.BrowserRegistry import BrowserRegistry
-from agentic_navigator.entities.browser.DOMTree import DOMNode, DOMTree
-from agentic_navigator.entities.browser.ElementTarget import ElementTarget
-from agentic_navigator.entities.browser.GeoLocation import GeoLocation
-from agentic_navigator.entities.browser.NavigationStack import NavigationStack
-from agentic_navigator.entities.browser.PageState import PageState
-from agentic_navigator.entities.browser.ScoutResult import ScoutResult
-from agentic_navigator.entities.browser.Screenshot import Screenshot
-from agentic_navigator.entities.browser.Tab import Tab
-from agentic_navigator.entities.memory.Experience import Experience, from_dict, to_dict
-from agentic_navigator.entities.memory.ExperienceMemory import ExperienceMemory
-from agentic_navigator.entities.memory.PromptCache import PromptCache
-from agentic_navigator.entities.perception.DOMDescription import DOMDescription, InteractiveElement
-from agentic_navigator.entities.perception.PageDescription import PageDescription
-from agentic_navigator.entities.perception.PerceptionConfig import PerceptionConfig
-from agentic_navigator.entities.perception.VisualDescription import BoundingBox, VisualDescription
-from agentic_navigator.entities.runtime.Agent import Agent
-from agentic_navigator.entities.runtime.AgentState import AgentState
-from agentic_navigator.entities.runtime.EnhancedArgs import EnhancedArgs
-from agentic_navigator.entities.runtime.ExecutionContract import ExecutionContract, ExecutionStep
-from agentic_navigator.entities.runtime.GatewaySession import GatewaySession
-from agentic_navigator.entities.runtime.Intent import Intent
-from agentic_navigator.entities.runtime.Plan import Plan
-from agentic_navigator.entities.runtime.ToolResult import ToolResult
+from smolclaw.agent.entities.actions.DeclarativeAction import DeclarativeAction
+from smolclaw.agent.entities.actions.ImperativeCommand import ImperativeCommand
+from smolclaw.agent.entities.browser.Address import Address
+from smolclaw.agent.entities.browser.Browser import Browser
+from smolclaw.agent.entities.browser.BrowserRegistry import BrowserRegistry
+from smolclaw.agent.entities.browser.DOMTree import DOMNode, DOMTree
+from smolclaw.agent.entities.browser.ElementTarget import ElementTarget
+from smolclaw.agent.entities.browser.GeoLocation import GeoLocation
+from smolclaw.agent.entities.browser.NavigationStack import NavigationStack
+from smolclaw.agent.entities.browser.PageState import PageState
+from smolclaw.agent.entities.browser.ScoutResult import ScoutResult
+from smolclaw.agent.entities.browser.Screenshot import Screenshot
+from smolclaw.agent.entities.browser.Tab import Tab
+from smolclaw.agent.entities.memory.Experience import Experience, from_dict, to_dict
+from smolclaw.agent.entities.memory.ExperienceMemory import ExperienceMemory
+from smolclaw.agent.entities.memory.PromptCache import PromptCache
+from smolclaw.agent.entities.perception.DOMDescription import DOMDescription, InteractiveElement
+from smolclaw.agent.entities.perception.PageDescription import PageDescription
+from smolclaw.agent.entities.perception.PerceptionConfig import PerceptionConfig
+from smolclaw.agent.entities.perception.VisualDescription import BoundingBox, VisualDescription
+from smolclaw.agent.entities.runtime.Agent import Agent
+from smolclaw.agent.entities.runtime.AgentState import AgentState
+from smolclaw.agent.entities.runtime.EnhancedArgs import EnhancedArgs
+from smolclaw.agent.entities.runtime.ExecutionContract import ExecutionContract, ExecutionStep
+from smolclaw.agent.entities.runtime.GatewaySession import GatewaySession
+from smolclaw.agent.entities.runtime.Intent import Intent
+from smolclaw.agent.entities.runtime.Plan import Plan
+from smolclaw.agent.entities.runtime.ToolResult import ToolResult
 
 __all__ = [
     "Address",

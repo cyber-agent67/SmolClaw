@@ -7,6 +7,15 @@ import os
 from pathlib import Path
 from typing import Any, Dict
 
+# Hugging Face configuration defaults
+HUGGINGFACE_BASE_URL = "https://router.huggingface.co/v1"
+HUGGINGFACE_MODELS = [
+    "Qwen/Qwen2.5-7B-Instruct",
+    "mistralai/Mistral-7B-Instruct-v0.3",
+    "meta-llama/Llama-3.1-8B-Instruct",
+    "HuggingFaceTB/SmolLM3-3B",
+]
+
 
 def smolclaw_home_dir() -> Path:
     target = Path.home() / ".smolclaw"
@@ -38,6 +47,36 @@ def _load_packaged_template(relative_path: str) -> str:
 def _write_if_missing(path: Path, content: str) -> None:
     if not path.exists():
         path.write_text(content, encoding="utf-8")
+
+
+def load_tool_prompts(tool_name: str) -> Dict[str, Any]:
+    """Load Prompts.json for a tool. User override takes priority over packaged default."""
+    user_file = smolclaw_home_dir() / tool_name / "Prompts.json"
+    if user_file.exists():
+        try:
+            return json.loads(user_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    # Fallback to packaged template
+    default = _load_packaged_template(f"{tool_name}/Prompts.json")
+    if default:
+        try:
+            return json.loads(default)
+        except Exception:
+            pass
+    return {}
+
+
+def _seed_tool_prompts(root: Path) -> None:
+    """Seed Prompts.json files for each tool into ~/.smolclaw/{tool}/."""
+    for tool in ["browser", "q_learning"]:
+        tool_dir = root / tool
+        tool_dir.mkdir(parents=True, exist_ok=True)
+        prompts_file = tool_dir / "Prompts.json"
+        if not prompts_file.exists():
+            default = _load_packaged_template(f"{tool}/Prompts.json")
+            if default:
+                prompts_file.write_text(default, encoding="utf-8")
 
 
 def ensure_home_layout() -> None:
@@ -72,6 +111,9 @@ def ensure_home_layout() -> None:
     _write_if_missing(root / "TOOLS.md", tools_content)
     _write_if_missing(root / "TOOS.md", tools_content)
     _write_if_missing(root / "SKILLS.md", skills_content)
+
+    # Seed tool Prompts.json files
+    _seed_tool_prompts(root)
 
 
 def config_dir() -> Path:

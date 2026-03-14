@@ -1,6 +1,6 @@
-"""smolclaw-local exports for tool registration and smolhand adapter logic."""
+"""SmolAgent tools — browser and Q-learning."""
 
-from agentic_navigator.tools.SmolhandTools import SmolhandTools
-from agentic_navigator.tools.ToolRegistry import ToolRegistry
+from .browser_tool import browser
+from .q_learning_tool import score_progress
 
-__all__ = ["SmolhandTools", "ToolRegistry"]
+__all__ = ["browser", "score_progress"]
