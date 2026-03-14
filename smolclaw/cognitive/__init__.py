@@ -50,6 +50,8 @@ from smolclaw.cognitive.event_sourcing import (
     CognitiveSystemStore,
 )
 
+from smolclaw.cognitive.context import ContextBuilder
+
 from smolclaw.cognitive.smolQ import (
     QLearningScoreEntity,
     QLearningState,
@@ -60,6 +62,8 @@ from smolclaw.cognitive.smolQ import (
 )
 
 __all__ = [
+    # Context
+    "ContextBuilder",
     # Effects
     "Effect",
     "Result",
