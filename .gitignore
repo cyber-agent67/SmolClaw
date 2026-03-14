@@ -1,8 +1,33 @@
+# Virtual environments
 .venv/
+venv/
+env/
+
+# Python
 __pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Runtime artifacts
 browser_data/
 screenshots/
 data/
 
+# Logs & secrets
 *.log
 .env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

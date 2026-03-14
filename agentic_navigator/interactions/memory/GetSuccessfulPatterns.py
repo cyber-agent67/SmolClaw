@@ -1,17 +1,5 @@
-"""Get successful patterns interaction."""
+"""Backward-compat shim — canonical location is core/memory/operations.py."""
 
-from typing import List
+from core.memory.operations import GetSuccessfulPatterns
 
-from agentic_navigator.entities.memory.Experience import Experience
-from agentic_navigator.entities.memory.ExperienceMemory import ExperienceMemory
-
-
-class GetSuccessfulPatterns:
-    @staticmethod
-    def execute(memory: ExperienceMemory, task_description: str) -> List[Experience]:
-        """Retrieves successful navigation patterns for similar tasks."""
-        patterns = []
-        for exp in memory.experiences:
-            if exp.task == task_description and exp.success:
-                patterns.append(exp)
-        return patterns
+__all__ = ["GetSuccessfulPatterns"]

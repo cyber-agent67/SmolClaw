@@ -4,7 +4,7 @@ import json
 import os
 from typing import List
 
-from agentic_navigator.entities.memory.Experience import Experience, from_dict, to_dict
+from core.memory.store import Experience, from_dict, to_dict
 
 
 class ExperienceRepository:

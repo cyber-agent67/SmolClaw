@@ -1,11 +1,5 @@
-"""ExperienceMemory entity - pure state container."""
+"""Backward-compat shim — canonical location is core/memory/store.py."""
 
-from typing import List
+from core.memory.store import ExperienceMemory
 
-from agentic_navigator.entities.memory.Experience import Experience
-
-
-class ExperienceMemory:
-    def __init__(self):
-        self.memory_file: str = "navigation_missions.json"
-        self.experiences: List[Experience] = []
+__all__ = ["ExperienceMemory"]
