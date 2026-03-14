@@ -544,15 +544,11 @@ class BrowserWrapper:
     # --- Vision (delegated) ---
 
     async def analyze_page_vision(self, prompt: str = "") -> dict:
-        """Use vision AI to analyze the current page.
-
-        Delegates to FlorenceVisionLayerService for consistent implementation.
-        """
-        from smolclaw.tools.smolhand.services import FlorenceVisionLayerService
+        """Use vision AI to analyze the current page via SmolEyes."""
+        from smolclaw.tools.smoleyes.runtime import describe_page_visual
 
         try:
-            # Use Florence-2 vision layer service
-            return FlorenceVisionLayerService.describe_current_view(prompt_hint=prompt)
+            return describe_page_visual(prompt_hint=prompt)
         except Exception as e:
             logger.warning("Florence vision failed: %s, using fallback", e)
             # Fallback to custom vision client if configured
