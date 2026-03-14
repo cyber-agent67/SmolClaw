@@ -45,9 +45,15 @@ async def get_settings(
 
 @router.get("/{saas_id}/pages", response_model=List[SettingsPage])
 async def get_settings_pages(saas_id: str):
-    """Get settings grouped by page."""
-    # Placeholder — would query from storage
-    return []
+    """Get settings grouped by page URL."""
+    raw = _settings_store.get(saas_id, [])
+    pages: Dict[str, SettingsPage] = {}
+    for entry in raw:
+        url = entry.get("page_url", "")
+        if url not in pages:
+            pages[url] = SettingsPage(saas_id=saas_id, url=url)
+        pages[url].settings.append(SettingItem(**{k: entry[k] for k in SettingItem.model_fields if k in entry}))
+    return list(pages.values())
 
 
 @router.post("/{saas_id}/baseline", status_code=201)

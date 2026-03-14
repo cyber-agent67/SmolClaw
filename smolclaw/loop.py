@@ -59,10 +59,45 @@ class GatewayQueueCommandSource(CommandSource):
 
 
 class TelegramCommandSource(CommandSource):
-    """Reserved source for future Telegram gateway integration."""
+    """Polls commands from a Telegram bot via long-polling.
+
+    Requires TELEGRAM_BOT_TOKEN and TELEGRAM_ALLOWED_CHAT_ID env vars.
+    """
+
+    def __init__(self):
+        import os
+        self._token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        self._allowed_chat_id = os.environ.get("TELEGRAM_ALLOWED_CHAT_ID", "")
+        self._offset: int = 0
+        self._base = f"https://api.telegram.org/bot{self._token}"
 
     def next_command(self) -> str | None:
-        raise NotImplementedError("Telegram source is not implemented yet.")
+        if not self._token:
+            raise RuntimeError("TELEGRAM_BOT_TOKEN env var is not set.")
+        import requests
+        try:
+            resp = requests.get(
+                f"{self._base}/getUpdates",
+                params={"offset": self._offset, "timeout": 10, "limit": 1},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            updates = resp.json().get("result", [])
+        except Exception:
+            return None
+
+        for update in updates:
+            self._offset = update["update_id"] + 1
+            message = update.get("message", {})
+            chat_id = str(message.get("chat", {}).get("id", ""))
+            text = message.get("text", "").strip()
+            if not text:
+                continue
+            if self._allowed_chat_id and chat_id != self._allowed_chat_id:
+                continue
+            return text
+
+        return None
 
 
 def parse_arguments():
