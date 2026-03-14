@@ -1,5 +1,5 @@
-"""Q-Learning scoring entities."""
+"""Backward-compat shim — canonical location is smolclaw.cognitive.smolQ.entities."""
 
-from .scoring import QLearningScoreEntity
+from smolclaw.cognitive.smolQ.entities import QLearningScoreEntity, QLearningState
 
-__all__ = ["QLearningScoreEntity"]
+__all__ = ["QLearningScoreEntity", "QLearningState"]

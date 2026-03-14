@@ -50,6 +50,15 @@ from smolclaw.cognitive.event_sourcing import (
     CognitiveSystemStore,
 )
 
+from smolclaw.cognitive.smolQ import (
+    QLearningScoreEntity,
+    QLearningState,
+    ScoreTaskProgress,
+    score_task_progress_q_learning,
+    get_q_state,
+    reset_q_state,
+)
+
 __all__ = [
     # Effects
     "Effect",
@@ -86,4 +95,11 @@ __all__ = [
     "Command",
     "Query",
     "CognitiveSystemStore",
+    # smolQ
+    "QLearningScoreEntity",
+    "QLearningState",
+    "ScoreTaskProgress",
+    "score_task_progress_q_learning",
+    "get_q_state",
+    "reset_q_state",
 ]
